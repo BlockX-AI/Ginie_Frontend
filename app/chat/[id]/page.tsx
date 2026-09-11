@@ -222,15 +222,22 @@ export default function ChatIdPage() {
       const files = (res as any)?.files;
       if (Array.isArray(files) && files.length > 0) {
         setProjectFiles(files);
+        return;
       }
-    } catch {
-      // Fallback: try meta endpoint which also includes files
-      try {
-        const pageSignal = pageAbortRef.current?.signal;
-        const meta = await api.demoProjectMeta(chatId, { signal: pageSignal });
-        const files = (meta as any)?.files;
-        if (Array.isArray(files)) setProjectFiles(files);
-      } catch {}
+    } catch {}
+    // Fallback: try meta endpoint which also includes files
+    try {
+      const pageSignal = pageAbortRef.current?.signal;
+      const meta = await api.demoProjectMeta(chatId, { signal: pageSignal });
+      const files = (meta as any)?.files;
+      if (Array.isArray(files) && files.length > 0) {
+        setProjectFiles(files);
+        return;
+      }
+    } catch {}
+    // Retry once after 3s in case files are still being stored
+    if (!wsLastFileFetchRef.current || Date.now() - wsLastFileFetchRef.current < 5000) {
+      setTimeout(() => { void fetchProjectFiles(); }, 3000);
     }
   };
 
@@ -255,6 +262,17 @@ export default function ChatIdPage() {
       const meta = await api.demoProjectMeta(pid, { signal: pageSignal });
       const chat = (meta as any)?.chat;
       const contracts = (meta as any)?.contracts || [];
+      const metaFiles = (meta as any)?.files || [];
+
+      // Set project files from meta if available
+      if (Array.isArray(metaFiles) && metaFiles.length > 0) {
+        setProjectFiles(prev => {
+          const existing = new Set(prev);
+          const merged = [...prev];
+          for (const f of metaFiles) { if (!existing.has(f)) merged.push(f); }
+          return merged;
+        });
+      }
 
       // Extract contract info
       if (contracts.length > 0) {

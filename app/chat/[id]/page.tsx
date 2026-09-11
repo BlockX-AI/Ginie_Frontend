@@ -476,6 +476,14 @@ export default function ChatIdPage() {
               }
               if (ev === 'file_created' || ev === 'snapshot_saved' || ev === 'files_updated') scheduleFileRefresh();
 
+              // --- Pipeline failed: stop everything, show error ---
+              if (ev === 'pipeline_failed') {
+                setIsBuilding(false);
+                setCurrentStage("failed"); setProgress(0); setState("failed");
+                setError(typeof j.message === 'string' ? j.message : "Pipeline failed. Please try again.");
+                continue;
+              }
+
               // --- DApp-specific: contract pipeline events ---
               if (isDappMode) {
                 // Pipeline progress (detailed stages from polling)
@@ -1218,8 +1226,19 @@ export default function ChatIdPage() {
           if (evt === "contract_failed" || evt === "contract_abi_missing") {
             // Backend will retry or fall back — don't mark as finished
           }
+          if (evt === "pipeline_failed") {
+            wsFinishedRef.current = true;
+            setIsBuilding(false);
+            setUnifiedStatus("failed");
+            setState("failed");
+            setError(typeof data?.message === "string" ? data.message : "Pipeline failed. Please try again.");
+            wsIntentionalCloseRef.current = true;
+            if (wsRef.current) {
+              try { wsRef.current.close(); } catch {}
+            }
+          }
           if (evt === "contract_skipped") {
-            setProgress((prev) => (prev == null ? 40 : Math.max(prev, 40)));
+            // No longer used — pipeline stops on contract failure
           }
           if (evt === "frontend_generating") {
             setUnifiedStatus("compile");

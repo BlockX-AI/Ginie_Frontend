@@ -2,12 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "https://evi-user-apis-production.up.railway.app";
+const DEFAULT_API_BASE = "https://usermanagementapis-production.up.railway.app";
+const API_BASE = String(process.env.NEXT_PUBLIC_API_BASE_URL || DEFAULT_API_BASE).replace(/\/+$/, "");
+
+function buildUpstreamUrl(path: string, search: string) {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return new URL(`${normalizedPath}${search}`, `${API_BASE}/`).toString();
+}
 
 async function handler(request: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
   const { path: segs } = await ctx.params;
   const path = "/" + segs.join("/");
-  const url = `${API_BASE}${path}${request.nextUrl.search}`;
+  const url = buildUpstreamUrl(path, request.nextUrl.search);
 
   const headers: Record<string, string> = {
     "Content-Type": request.headers.get("content-type") || "application/json",

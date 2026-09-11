@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { DeploymentModeSelector, type DeploymentMode } from "@/components/chat";
-import { useAccount } from "wagmi";
+// import { useAccount } from "wagmi";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import {
@@ -142,7 +142,9 @@ export function AnimatedAIChat() {
     const router = useRouter();
     const { entitlements, isPro } = useAuth();
     const hasWalletEntitlement = entitlements?.wallet_deployments === true || entitlements?.pro_enabled === true || isPro;
-    const { address, isConnected } = useAccount();
+    // const { address, isConnected } = useAccount();
+    const address = null;
+    const isConnected = false;
     const [inputFocused, setInputFocused] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 

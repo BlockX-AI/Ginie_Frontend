@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const PROTECTED_PREFIXES = ['/chat', '/profile', '/subscription'];
+const PROTECTED_PREFIXES = ['/profile', '/subscription'];
 const AUTH_PAGES = ['/signin', '/signup'];
 
 export function middleware(request: NextRequest) {

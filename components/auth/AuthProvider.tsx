@@ -138,14 +138,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       isRefreshingRef.current = true;
       try {
-        // Try to refresh first
-        try { await (api as any).refresh?.(); } catch {}
-        const me = await (api as any).meCached?.({ forceRefresh: true }) ?? await api.me();
-        if (!isMounted) return;
+        // Skip auth check for demo mode - webbuilder backend doesn't have user management
+        // try { await (api as any).refresh?.(); } catch {}
+        // const me = await (api as any).meCached?.({ forceRefresh: true }) ?? await api.me();
+        // if (!isMounted) return;
 
-        const u = (me as any).user ?? null;
-        const en = (me as any).entitlements ?? null;
-        const c = (me as any).counts ?? null;
+        // const u = (me as any).user ?? null;
+        // const en = (me as any).entitlements ?? null;
+        // const c = (me as any).counts ?? null;
+        const u = null;
+        const en = null;
+        const c = null;
         setUser(u);
         setEntitlements(en);
         setCounts(c);

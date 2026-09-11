@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Web3Cash — Complete Product Plan</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --black: #0a0a0a;
+  --off-white: #f7f6f3;
+  --off-white2: #efede9;
+  --rule: #e0ded9;
+  --muted: #6b6860;
+  --white: #ffffff;
+  --subtle: #d4d2cc;
+  --accent-green: #0a4a2a;
+  --accent-green-light: #e8f5ee;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { font-family: 'Inter', sans-serif; background: var(--off-white); color: var(--black); line-height: 1.6; overflow-x: hidden; }
+
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: var(--black); height: 52px;
+  display: flex; align-items: center; padding: 0 32px; gap: 0;
+}
+.nav-brand { font-family: 'DM Mono', monospace; font-size: 14px; font-weight: 500; color: var(--white); letter-spacing: 0.06em; margin-right: 40px; white-space: nowrap; flex-shrink: 0; }
+.nav-links { display: flex; gap: 0; overflow-x: auto; scrollbar-width: none; flex: 1; }
+.nav-links::-webkit-scrollbar { display: none; }
+.nav-link { font-size: 10px; font-weight: 500; color: #777; text-decoration: none; letter-spacing: 0.1em; text-transform: uppercase; padding: 0 14px; height: 52px; display: flex; align-items: center; transition: color 0.2s; white-space: nowrap; cursor: pointer; user-select: none; }
+.nav-link:hover, .nav-link.active { color: var(--white); }
+
+main { padding-top: 52px; }
+.section { padding: 80px 0; border-bottom: 1px solid var(--rule); }
+.section:nth-child(even) { background: var(--off-white2); }
+.container { max-width: 1060px; margin: 0 auto; padding: 0 40px; }
+
+.cover { background: var(--black); color: var(--white); padding: 100px 0 80px; }
+.cover-inner { max-width: 1060px; margin: 0 auto; padding: 0 40px; }
+.cover-eyebrow { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: #666; margin-bottom: 28px; }
+.cover h1 { font-family: 'DM Serif Display', serif; font-size: clamp(52px, 7vw, 92px); line-height: 1.0; font-weight: 400; margin-bottom: 8px; letter-spacing: -0.03em; }
+.cover h1 span { color: #555; }
+.cover-tagline { font-size: clamp(14px, 2vw, 17px); color: #555; font-weight: 300; margin-bottom: 60px; max-width: 560px; line-height: 1.6; }
+.cover-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; background: #1a1a1a; border-top: 1px solid #1a1a1a; max-width: 860px; }
+.stat-box { background: #0f0f0f; padding: 22px 24px; }
+.stat-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: #444; margin-bottom: 8px; }
+.stat-val { font-size: 15px; font-weight: 500; color: var(--white); line-height: 1.3; }
+
+.sec-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+h2 { font-family: 'DM Serif Display', serif; font-size: clamp(26px, 3.5vw, 40px); font-weight: 400; line-height: 1.1; letter-spacing: -0.02em; margin-bottom: 20px; }
+h3 { font-size: 15px; font-weight: 600; margin-bottom: 8px; margin-top: 28px; letter-spacing: -0.01em; }
+p { font-size: 15px; color: #3a3830; line-height: 1.75; margin-bottom: 16px; }
+
+.callout { border: 1px solid var(--black); padding: 36px 40px; margin: 40px 0; background: var(--black); color: var(--white); }
+.callout-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: #555; margin-bottom: 16px; }
+.callout-text { font-family: 'DM Serif Display', serif; font-size: clamp(18px, 2.5vw, 24px); color: var(--white); font-weight: 400; line-height: 1.5; }
+.callout-text em { color: #888; font-style: normal; }
+
+.bw-cite { border-left: 2px solid var(--black); padding: 16px 20px; background: var(--off-white2); margin: 20px 0; }
+.bw-cite-src { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.bw-cite-text { font-size: 13px; color: var(--black); line-height: 1.65; font-weight: 500; }
+
+.prob-table { width: 100%; border-collapse: collapse; margin-top: 36px; font-size: 13px; }
+.prob-table th { background: var(--black); color: var(--white); padding: 12px 16px; text-align: left; font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 400; }
+.prob-table td { padding: 14px 16px; border-bottom: 1px solid var(--rule); vertical-align: top; line-height: 1.55; }
+.prob-table tr:nth-child(even) td { background: var(--off-white2); }
+.prob-table td:first-child { font-weight: 500; }
+
+.stats-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--black); margin-top: 44px; }
+.stats-box { background: var(--black); color: var(--white); padding: 28px 24px; text-align: center; }
+.stats-num { font-family: 'DM Serif Display', serif; font-size: 32px; color: var(--white); margin-bottom: 8px; }
+.stats-desc { font-size: 11px; color: #555; letter-spacing: 0.04em; line-height: 1.4; }
+
+.usp-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--rule); margin-top: 40px; }
+.usp-card { background: var(--white); padding: 28px 24px; }
+.usp-tag { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--rule); }
+.usp-title { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+.usp-body { font-size: 13px; color: var(--muted); line-height: 1.65; }
+
+.flow-tabs { display: flex; flex-wrap: wrap; gap: 0; margin-top: 36px; border: 1px solid var(--black); overflow: hidden; }
+.flow-tab { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; border: none; border-right: 1px solid var(--black); background: transparent; color: var(--muted); padding: 10px 16px; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+.flow-tab:last-child { border-right: none; }
+.flow-tab:hover { background: var(--off-white2); color: var(--black); }
+.flow-tab.active { background: var(--black); color: var(--white); }
+.flow-panel { display: none; }
+.flow-panel.active { display: block; }
+.flow-desc { font-size: 13px; color: var(--muted); margin: 16px 0 8px; padding: 14px 18px; border-left: 2px solid var(--black); background: var(--off-white2); line-height: 1.6; }
+
+.mermaid-box { background: var(--white); border: 1px solid var(--rule); padding: 24px 16px; overflow-x: hidden; overflow-y: auto; margin-top: 20px; }
+.mermaid-box .mermaid { display: flex; justify-content: center; max-width: 100%; }
+.mermaid-box .mermaid svg { max-width: 100% !important; height: auto !important; }
+.arch-caption { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 0.1em; text-align: center; margin-top: 14px; }
+
+.feat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--rule); margin-top: 36px; }
+.feat-card { background: var(--white); padding: 24px; }
+.feat-title { font-size: 14px; font-weight: 600; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--rule); }
+.feat-item { font-size: 12px; padding: 5px 0; border-bottom: 1px dotted var(--rule); color: #3a3830; display: flex; gap: 8px; line-height: 1.5; }
+.feat-item::before { content: '—'; color: var(--subtle); flex-shrink: 0; }
+
+.mile-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--rule); margin-top: 36px; }
+.mile-card { background: var(--white); overflow: hidden; }
+.mile-hdr { background: var(--black); color: var(--white); padding: 16px 20px; }
+.mile-title { font-weight: 600; font-size: 14px; line-height: 1.3; }
+.mile-tag { font-family: 'DM Mono', monospace; font-size: 9px; color: #888; letter-spacing: 0.1em; margin-top: 4px; }
+.mile-items { padding: 16px 20px; }
+.mile-item { display: flex; gap: 10px; align-items: flex-start; padding: 6px 0; border-bottom: 1px solid var(--off-white2); font-size: 12px; line-height: 1.5; }
+.mile-item:last-child { border-bottom: none; }
+.mi-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--black); margin-top: 6px; flex-shrink: 0; }
+
+.risk-list { margin-top: 32px; }
+.risk-item { display: grid; grid-template-columns: 32px 1fr; gap: 16px; padding: 18px 0; border-bottom: 1px solid var(--rule); }
+.risk-n { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); font-weight: 500; padding-top: 2px; }
+.risk-title { font-size: 14px; font-weight: 600; margin-bottom: 5px; }
+.risk-body { font-size: 13px; color: var(--muted); line-height: 1.6; }
+.risk-sev { display: inline-block; font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 8px; border: 1px solid; margin-bottom: 6px; }
+.sev-crit { border-color: #c00; color: #c00; }
+.sev-high { border-color: #a06000; color: #a06000; }
+.sev-med { border-color: #2a6a2a; color: #2a6a2a; }
+
+.sum-table { width: 100%; border-collapse: collapse; margin-top: 36px; font-size: 13px; }
+.sum-table td { padding: 13px 18px; border-bottom: 1px solid var(--rule); }
+.sum-table td:first-child { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); width: 220px; background: var(--off-white2); font-weight: 500; }
+.sum-table td:last-child { font-weight: 500; }
+
+.comp-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--rule); margin-top: 36px; }
+.comp-card { background: var(--white); padding: 22px 20px; }
+.comp-vs { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.12em; color: var(--muted); margin-bottom: 8px; }
+.comp-title { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+.comp-body { font-size: 12px; color: var(--muted); line-height: 1.65; }
+
+.divider { height: 1px; background: var(--rule); margin: 28px 0; }
+.tag-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; margin-bottom: 16px; }
+.tag { font-family: 'DM Mono', monospace; font-size: 10px; padding: 4px 10px; border: 1px solid var(--rule); color: var(--muted); }
+.tag-b { border-color: var(--black); color: var(--black); }
+
+footer { background: var(--black); color: var(--white); padding: 72px 0; text-align: center; }
+footer h2 { font-family: 'DM Serif Display', serif; font-size: 36px; color: var(--white); margin-bottom: 12px; }
+footer p { color: #555; font-size: 14px; }
+
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 28px; }
+.info-box { background: var(--white); border: 1px solid var(--rule); padding: 24px; }
+.info-box-title { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--rule); }
+.info-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid var(--off-white2); font-size: 13px; gap: 16px; }
+.info-row:last-child { border-bottom: none; }
+.info-label { color: var(--muted); flex-shrink: 0; }
+.info-val { font-weight: 500; text-align: right; }
+
+@media (max-width: 768px) {
+  .container, .cover-inner { padding: 0 20px; }
+  nav { padding: 0 20px; }
+  .section { padding: 56px 0; }
+  .cover { padding: 72px 0 56px; }
+  .cover-stats { grid-template-columns: 1fr 1fr; max-width: 100%; }
+  .stats-strip, .usp-grid, .comp-grid, .mile-grid, .feat-grid, .two-col { grid-template-columns: 1fr; }
+  .flow-tabs { flex-direction: column; }
+  .flow-tab { border-right: none; border-bottom: 1px solid var(--black); }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">Web3Cash</div>
+  <div class="nav-links">
+    <span class="nav-link" onclick="navTo('problem')">Problem</span>
+    <span class="nav-link" onclick="navTo('solution')">Solution</span>
+    <span class="nav-link" onclick="navTo('architecture')">Architecture</span>
+    <span class="nav-link" onclick="navTo('user-flows')">User Flows</span>
+    <span class="nav-link" onclick="navTo('project-flows')">Project Flows</span>
+    <span class="nav-link" onclick="navTo('tech-arch')">Tech</span>
+    <span class="nav-link" onclick="navTo('data')">Data</span>
+    <span class="nav-link" onclick="navTo('business')">Business</span>
+    <span class="nav-link" onclick="navTo('roadmap')">Roadmap</span>
+    <span class="nav-link" onclick="navTo('risks')">Risks</span>
+    <span class="nav-link" onclick="navTo('summary')">Summary</span>
+  </div>
+</nav>
+
+<div class="cover">
+  <div class="cover-inner">
+    <div class="cover-eyebrow">Product Plan · Engineering & Product Management · v1.0 · April 2026</div>
+    <h1>Web3<span>Cash</span></h1>
+    <p class="cover-tagline">The world's largest Web3 cashback and quest platform — real money rewards for real on-chain actions. Full product architecture, flow diagrams, data models, and engineering roadmap.</p>
+    <div class="cover-stats">
+      <div class="stat-box"><div class="stat-label">Model</div><div class="stat-val">CPA / CPI Network</div></div>
+      <div class="stat-box"><div class="stat-label">Revenue Layer 1</div><div class="stat-val">Project Fees</div></div>
+      <div class="stat-box"><div class="stat-label">Revenue Layer 2</div><div class="stat-val">Subscriptions</div></div>
+      <div class="stat-box"><div class="stat-label">Payout Token</div><div class="stat-val">USDC — Any Wallet</div></div>
+      <div class="stat-box"><div class="stat-label">Referral Engine</div><div class="stat-val">10% Lifetime · 2 Levels</div></div>
+    </div>
+  </div>
+</div>
+
+<main>
+
+<!-- ═══════════════════════════════════════ PROBLEM ═══════════════════════════════════════ -->
+<section class="section" id="problem">
+  <div class="container">
+    <div class="sec-label">The Problem</div>
+    <h2>Web3 projects burn millions acquiring<br>users who don't stay.</h2>
+
+    <div class="callout">
+      <div class="callout-label">Market Reality · Web3 User Acquisition · 2024–2026</div>
+      <div class="callout-text">
+        Web3 projects spent an estimated <em>$4–6B on marketing in 2024</em> — primarily on Twitter influencers, airdrops, and Discord campaigns. Less than 5% of that spend had any measurable per-user ROI. Meanwhile, users have no trusted platform to discover new legitimate dApps and earn real rewards. <em>Both sides of the market are underserved simultaneously.</em>
+      </div>
+    </div>
+
+    <table class="prob-table">
+      <thead>
+        <tr><th>The Pain</th><th>Who Feels It</th><th>Root Cause</th><th>Web3Cash Fix</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>No measurable CPI/CPA infrastructure exists for dApps</td>
+          <td>Web3 project growth teams</td>
+          <td>Web2 performance marketing networks don't support wallet-connect or on-chain verification</td>
+          <td>Pay per verified on-chain action — install, deposit, trade, hold — not per click</td>
+        </tr>
+        <tr>
+          <td>Airdrop farmers drain treasury, never convert to real users</td>
+          <td>DeFi protocols, NFT projects, GameFi</td>
+          <td>No Sybil protection, no on-chain action verification, no retention signal</td>
+          <td>Anti-Sybil scoring + on-chain verification ensures only real wallets with real history claim rewards</td>
+        </tr>
+        <tr>
+          <td>Twitter influencer ROI is opaque and unverifiable</td>
+          <td>Project marketing budgets</td>
+          <td>Off-chain engagement cannot be linked to on-chain user activation</td>
+          <td>Every completed quest generates a verifiable on-chain trail — wallets, tx hashes, timestamps</td>
+        </tr>
+        <tr>
+          <td>Users can't discover new dApps safely without risking scams</td>
+          <td>Crypto-native users seeking yield and new products</td>
+          <td>No trusted curator vets projects before listing quests</td>
+          <td>Verified project badge system — KYC'd projects only, escrow-backed rewards, no rug-pull risk</td>
+        </tr>
+        <tr>
+          <td>Rewards locked in worthless project tokens, never liquid</td>
+          <td>Users completing tasks across quest platforms (Galxe, Layer3)</td>
+          <td>Competitors pay in native tokens or NFTs, not stable value</td>
+          <td>All rewards in USDC, withdrawable to any EVM wallet — real money, real value</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="stats-strip">
+      <div class="stats-box"><div class="stats-num">$5B+</div><div class="stats-desc">Annual Web3 marketing spend with &lt;5% measurable ROI</div></div>
+      <div class="stats-box"><div class="stats-num">$20</div><div class="stats-desc">Average project willingness to pay per verified wallet user</div></div>
+      <div class="stats-box"><div class="stats-num">$18</div><div class="stats-desc">Blended cashback per user acquired — 90% passed to user</div></div>
+      <div class="stats-box"><div class="stats-num">3</div><div class="stats-desc">Revenue layers: CPA fees, subscriptions, exclusive access codes</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════ SOLUTION ═══════════════════════════════════════ -->
+<section class="section" id="solution">
+  <div class="container">
+    <div class="sec-label">The Solution</div>
+    <h2>Web3Cash — real cash for real<br>on-chain actions.</h2>
+    <p>A two-sided marketplace: Web3 projects pay per verified user action (installs, deposits, trades, follows), and users earn real USDC cashback withdrawable to any wallet. A lifetime referral engine (10% forever, 2 levels) creates zero-CAC viral distribution. A subscription tier adds recurring revenue on top.</p>
+
+    <div class="usp-grid">
+      <div class="usp-card"><div class="usp-tag">Core Differentiator</div><div class="usp-title">Real USDC — not points</div><div class="usp-body">Every reward paid in USDC stablecoins. Competitors (Galxe, Layer3, Zealy) pay in project tokens, NFTs, or locked points. USDC is immediately liquid, withdrawable to any EVM wallet, and universally valued.</div></div>
+      <div class="usp-card"><div class="usp-tag">Viral Engine</div><div class="usp-title">10% lifetime referral</div><div class="usp-body">Refer a user, earn 10% of every reward they ever earn — forever. Level 2 earns 3%. Capped at 2 levels to preserve unit economics. In crypto Telegram groups, this mechanic spreads within hours.</div></div>
+      <div class="usp-card"><div class="usp-tag">B2B Positioning</div><div class="usp-title">Performance marketing vocabulary</div><div class="usp-body">Projects buy CPI, CPA, CPL, CPS, CPC — the same language Web2 growth teams already understand. Lowering the mental barrier to buying is a distribution advantage, not just a UX choice.</div></div>
+      <div class="usp-card"><div class="usp-tag">Trust Layer</div><div class="usp-title">Verified projects + escrow</div><div class="usp-body">Projects escrow USDC before any quest goes live. Users are guaranteed payment — no rug-pull possible. Project verification badge system ensures only KYC'd, legitimate projects can list quests.</div></div>
+      <div class="usp-card"><div class="usp-tag">Anti-Fraud</div><div class="usp-title">On-chain Sybil protection</div><div class="usp-body">Wallet age, transaction history depth, gas spend patterns, and social proof layer prevent bot farms. The verification engine is the core IP and primary moat — it's what makes projects trust the platform.</div></div>
+      <div class="usp-card"><div class="usp-tag">Revenue Layer</div><div class="usp-title">Subscription tier (Crodeye)</div><div class="usp-body">$5/$10/$25 per month tiers unlock larger rewards, exclusive quest access, priority verification, and higher referral rates. Converts the performance marketing fee model into predictable recurring ARR.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════ ARCHITECTURE ═══════════════════════════════════════ -->
+<section class="section" id="architecture">
+  <div class="container">
+    <div class="sec-label">Platform Architecture</div>
+    <h2>Full system overview — every layer<br>from frontend to blockchain.</h2>
+    <p>Two primary clients (User Web App and Project Dashboard) communicate through a unified API Gateway. Seven microservices handle distinct domains. A multi-chain indexer watches on-chain state. An escrow smart contract holds project funds in trust. All data flows through PostgreSQL with Redis for caching and queue management.</p>
+
+    <div class="mermaid-box">
+      <div class="mermaid">
+flowchart TD
+    UA["User\nBrowser / Mobile"]
+    PA["Project Admin\nDashboard"]
+    CDN["Next.js Frontend\nVercel CDN"]
+    GW["API Gateway\nRate Limit · JWT Auth · Routing"]
+
+    US["User Service\nAuth · Profiles · Sybil Score"]
+    QS["Quest Service\nCRUD · Discovery · Status Engine"]
+    VS["Verification Service\nOn-chain + Off-chain Checks"]
+    PS["Payment Service\nEscrow · Payouts · Revenue Split"]
+    RS["Referral Service\nTree · Attribution · Reward Calc"]
+    SS["Subscription Service\nTiers · Billing · Access Control"]
+    NS["Notification Service\nEmail · Push · Webhooks"]
+    AS["Analytics Service\nMetrics · Reports · Dashboards"]
+
+    DB["PostgreSQL\nCore Relational Data"]
+    RD["Redis\nSessions · Cache · BullMQ Jobs"]
+    S3["S3 Object Storage\nReport Files · Media"]
+
+    IDX["Multi-Chain Indexer\nAlchemy Webhooks · Moralis"]
+    ESC["Escrow Smart Contract\nSolidity · EVM · Audited"]
+    ETH["Ethereum Mainnet"]
+    BNB["BNB Chain"]
+    SOL["Solana (Phase 2)"]
+
+    UA --> CDN
+    PA --> CDN
+    CDN --> GW
+    GW --> US
+    GW --> QS
+    GW --> VS
+    GW --> PS
+    GW --> RS
+    GW --> SS
+    GW --> AS
+    US --> DB
+    QS --> DB
+    VS --> DB
+    PS --> DB
+    RS --> DB
+    SS --> DB
+    US --> RD
+    QS --> RD
+    VS --> RD
+    PS --> RD
+    VS --> IDX
+    PS --> ESC
+    NS --> DB
+    NS --> S3
+    AS --> DB
+    IDX --> ETH
+    IDX --> BNB
+    IDX --> SOL
+    ESC --> ETH
+      </div>
+      <div class="arch-caption">Diagram 1 — Full platform architecture · 8 microservices · multi-chain blockchain layer</div>
+    </div>
+
+    <div class="divider"></div>
+    <h3>Technology stack decisions</h3>
+    <div class="feat-grid">
+      <div class="feat-card">
+        <div class="feat-title">Frontend & API</div>
+        <div class="feat-item">Next.js 14 (App Router) — SSR for SEO on quest discovery pages</div>
+        <div class="feat-item">wagmi v2 + viem — wallet connection and on-chain reads</div>
+        <div class="feat-item">RainbowKit — multi-wallet UX (MetaMask, WalletConnect, Coinbase)</div>
+        <div class="feat-item">Node.js + Fastify — API Gateway, high throughput, low latency</div>
+        <div class="feat-item">tRPC — type-safe API calls between Next.js and backend services</div>
+        <div class="feat-item">Tailwind CSS — utility-first, consistent design tokens</div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-title">Backend & Infrastructure</div>
+        <div class="feat-item">PostgreSQL 16 (Supabase or Neon) — primary relational store</div>
+        <div class="feat-item">Redis 7 (Upstash) + BullMQ — job queue for async verification jobs</div>
+        <div class="feat-item">Alchemy Webhooks — real-time on-chain event streaming</div>
+        <div class="feat-item">Moralis Streams — fallback indexer, multi-chain coverage</div>
+        <div class="feat-item">Circle USDC API — stablecoin payouts and escrow management</div>
+        <div class="feat-item">Stripe — subscription billing for Crodeye tiers</div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-title">Blockchain & Smart Contracts</div>
+        <div class="feat-item">Solidity 0.8.x — Escrow contract, minimal logic, maximum auditability</div>
+        <div class="feat-item">Hardhat — local dev, testing, deployment scripting</div>
+        <div class="feat-item">OpenZeppelin — battle-tested contract primitives (ReentrancyGuard, Ownable)</div>
+        <div class="feat-item">Multisig (Safe) — treasury management, no single key holds funds</div>
+        <div class="feat-item">Chainlink Price Feeds — ETH/USDC rate for gas cost estimation</div>
+        <div class="feat-item">Slither + Mythril — automated security analysis in CI</div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-title">DevOps & Monitoring</div>
+        <div class="feat-item">GitHub Actions — CI/CD pipeline, automated tests on every PR</div>
+        <div class="feat-item">Railway or Fly.io — backend deployment, zero-downtime deploys</div>
+        <div class="feat-item">Sentry — error tracking, performance monitoring across all services</div>
+        <div class="feat-item">Datadog — APM, database query performance, alert thresholds</div>
+        <div class="feat-item">Cloudflare WAF — DDoS protection, bot traffic filtering at edge</div>
+        <div class="feat-item">PagerDuty — on-call rotation for payment service incidents</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════ USER FLOWS ═══════════════════════════════════════ -->
+<section class="section" id="user-flows">
+  <div class="container">
+    <div class="sec-label">User Flows</div>
+    <h2>Every user journey mapped — from<br>wallet connect to USDC in pocket.</h2>
+    <p>Four primary user journeys covering registration, quest completion, referral attribution, and cashback withdrawal. Each flow is designed to minimize friction while maximising the verification signal needed to prevent fraud. Wallet-connect is the primary auth — no username/password required.</p>
+
+    <div class="flow-tabs" id="userFlowTabs">
+      <button class="flow-tab active" onclick="showFlow('uf','register',this)">Registration & Onboarding</button>
+      <button class="flow-tab" onclick="showFlow('uf','quest',this)">Quest Discovery & Completion</button>
+      <button class="flow-tab" onclick="showFlow('uf','referral',this)">Referral Attribution</button>
+      <button class="flow-tab" onclick="showFlow('uf','withdrawal',this)">Cashback Withdrawal</button>
+    </div>
+
+    <!-- REGISTRATION -->
+    <div id="uf-register" class="flow-panel active">
+      <div class="flow-desc">User lands on Web3Cash, connects wallet via WalletConnect or MetaMask, signs a message to prove wallet ownership (no gas cost), and is scored for Sybil risk before being allowed to complete quests. High-risk wallets are flagged, not blocked — they go through a manual review queue.</div>
+      <div class="mermaid-box"><div class="mermaid">
+flowchart TD
+    A["User visits Web3Cash"]
+    A --> B["Click Connect Wallet"]
+    B --> C{"Wallet type?"}
+    C -->|"MetaMask"| D["Inject web3 provider"]
+    C -->|"WalletConnect"| E["QR code or deep link"]
+    C -->|"Coinbase Wallet"| F["Coinbase SDK"]
+    D --> G["Request wallet signature\nSign message — no gas required"]
+    E --> G
+    F --> G
+    G --> H{"Signature valid?"}
+    H -->|"No"| I["Show error — retry prompt"]
+    H -->|"Yes"| J["Create user account\nWallet address as primary ID"]
+    J --> K["Run Sybil Score check\nWallet age · Tx count · Gas spend · ETH balance"]
+    K --> L{"Sybil score?"}
+    L -->|"Score 70+"| M["Full access — all quests available"]
+    L -->|"Score 40–69"| N["Limited access — starter quests only\nInvite friends to boost score"]
+    L -->|"Score below 40"| O["Manual review queue\nEmail verification required"]
+    M --> P["Show onboarding: select interests\nDeFi · GameFi · NFT · Social · Infrastructure"]
+    N --> P
+    O --> Q["Send verification email\nRecheck score after 24 hrs"]
+    P --> R["Show personalised quest feed"]
+    R --> S["Prompt: Share referral link to earn 10% of friend rewards"]
+      </div>
+      <div class="arch-caption">Diagram 2 — User registration and Sybil scoring flow</div>
+      </div>
+    </div>
+
+    <!-- QUEST COMPLETION -->
+    <div id="uf-quest" class="flow-panel">
+      <div class="flow-desc">The core product loop: user discovers a quest, reads the requirements, performs the on-chain or off-chain action, and submits for verification. The verification service checks the action, updates the quest completion record, and queues a reward payout. The entire flow from quest submission to reward credited takes under 60 seconds for on-chain actions.</div>
+      <div class="mermaid-box"><div class="mermaid">
+flowchart TD
+    A["User browses quest feed"]
+    A --> B["Select quest\nView reward · requirements · time limit"]
+    B --> C["Click Start Quest"]
+    C --> D["Check user eligibility\nSybil score · subscription tier · prior completion"]
+    D --> E{"Eligible?"}
+    E -->|"No"| F["Show reason: already completed / tier required / score too low"]
+    E -->|"Yes"| G{"Quest type?"}
+    G -->|"Install dApp"| H["Open dApp link\nTrack install event via webhook"]
+    G -->|"Twitter Follow"| I["OAuth Twitter connection\nVerify follow via API"]
+    G -->|"Wallet Connect"| J["Connect wallet to dApp\nTrack WalletConnect event"]
+    G -->|"Deposit Funds"| K["User deposits on dApp\nIndexer watches wallet address"]
+    G -->|"Video Watch"| L["Embed video\nTrack watch-time via player events"]
+    G -->|"Site Visit"| M["Track page visit\nPixel + on-chain wallet signature"]
+    H --> N["Webhook fires on first open"]
+    I --> N
+    J --> N
+    K --> N
+    L --> N
+    M --> N
+    N --> O["Submit completion to Verification Service"]
+    O --> P["Verification Engine runs\n— see Tech Architecture for detail —"]
+    P --> Q{"Verification result?"}
+    Q -->|"Passed"| R["Mark completion VERIFIED\nQueue reward payout"]
+    Q -->|"Failed"| S["Mark completion FAILED\nShow failure reason to user"]
+    Q -->|"Pending"| T["Mark PENDING\nIndex next block — retry in 30s"]
+    R --> U["Payout queued in BullMQ\nSend in-app notification"]
+    T -->|"Max retries reached"| S
+    U --> V["User sees reward in dashboard\nWithdraw any time above $5 minimum"]
+      </div>
+      <div class="arch-caption">Diagram 3 — Quest discovery and completion flow · 6 quest types</div>
+    </div>
+    </div>
+
+    <!-- REFERRAL -->
+    <div id="uf-referral" class="flow-panel">
+      <div class="flow-desc">Every user gets a unique referral code. When a referred user completes any quest, the referrer earns 10% of the gross reward value — not 10% of the user's net payout. If that referred user also refers someone (level 2), the original referrer earns 3%. Payouts are capped at 2 levels to protect unit economics. Attribution is deterministic and stored on-chain via the escrow contract.</div>
+      <div class="mermaid-box"><div class="mermaid">
+flowchart TD
+    A["User A has referral code: W3C-A1B2"]
+    A --> B["User A shares code on\nTelegram · Twitter · Discord"]
+    B --> C["User B clicks referral link\nLands on Web3Cash with ref=W3C-A1B2"]
+    C --> D["Ref code stored in cookie + URL param"]
+    D --> E["User B connects wallet\nCompletes registration"]
+    E --> F["Referral record created\nLevel 1: A referred B"]
+    F --> G["User B completes Quest\nEarns USDC 10 reward"]
+    G --> H["Referral Service calculates\nLevel 1 bonus: 10% of gross = USDC 1.00"]
+    H --> I["Queue referral payout for User A\nUSDC 1.00 credited to A's balance"]
+    I --> J["User B shares their own code\nRef code: W3C-B3C4"]
+    J --> K["User C joins via B's code\nLevel 2 linkage: A → B → C"]
+    K --> L["User C completes Quest\nEarns USDC 10 reward"]
+    L --> M["Referral Service calculates\nLevel 1: B gets 10% = USDC 1.00\nLevel 2: A gets 3% = USDC 0.30"]
+    M --> N["Queue payouts:\nB: +USDC 1.00 · A: +USDC 0.30"]
+    N --> O["Referral tree capped at 2 levels\nLevel 3+ earns nothing — prevents pyramid mechanics"]
+    O --> P["All referral payouts visible\nin user dashboard with attribution trail"]
+      </div>
+      <div class="arch-caption">Diagram 4 — 2-level referral attribution and payout calculation</div>
+    </div>
+    </div>
+
+    <!-- WITHDRAWAL -->
+    <div id="uf-withdrawal" class="flow-panel">
+      <div class="flow-desc">Users accumulate USDC in their Web3Cash balance. When they withdraw, the payment service initiates a transfer from the escrow contract to the user's specified wallet address. Minimum withdrawal is $5. Maximum single withdrawal is $10,000. KYC is required for withdrawals above $500 to remain compliant. All transactions are on-chain and verifiable.</div>
+      <div class="mermaid-box"><div class="mermaid">
+flowchart TD
+    A["User navigates to Withdraw"]
+    A --> B["Shows current balance\nEarned rewards + referral income"]
+    B --> C["User enters withdrawal amount"]
+    C --> D{"Amount valid?"}
+    D -->|"Below $5 minimum"| E["Show minimum threshold message"]
+    D -->|"Above $10,000"| F["Flag for manual review\nCompliance team approval required"]
+    D -->|"Valid amount"| G{"Amount above $500?"}
+    G -->|"Yes"| H{"KYC verified?"}
+    H -->|"No"| I["Prompt KYC flow\nID document + liveness check via Synaps or Persona"]
+    H -->|"Yes"| J["Proceed to wallet selection"]
+    G -->|"No — below $500"| J
+    I --> K{"KYC passed?"}
+    K -->|"No"| L["KYC rejected — show reason\nUser can resubmit or contact support"]
+    K -->|"Yes"| J
+    J --> M["User selects wallet address\nPrimary wallet auto-filled\nOption to enter any EVM address"]
+    M --> N["Confirm withdrawal summary\nAmount · Wallet · Estimated gas · Network"]
+    N --> O["User clicks Confirm"]
+    O --> P["Payment Service validates\nBalance sufficient · Wallet valid · Rate limits OK"]
+    P --> Q["Escrow contract initiated\nTransfer USDC from treasury to user wallet"]
+    Q --> R{"On-chain confirmation?"}
+    R -->|"Confirmed"| S["Update balance in DB\nSend tx hash to user\nPush notification + email"]
+    R -->|"Failed"| T["Retry with higher gas\nMax 3 attempts — then manual review"]
+    S --> U["Balance deducted in dashboard\nWithdrawal history entry created"]
+      </div>
+      <div class="arch-caption">Diagram 5 — Cashback withdrawal flow with KYC compliance gate</div>
+    </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════ PROJECT FLOWS ═══════════════════════════════════════ -->
+<section class="section" id="project-flows">
+  <div class="container">
+    <div class="sec-label">Project Flows — B2B Side</div>
+    <h2>How Web3 projects create campaigns,<br>fund escrow, and track ROI.</h2>
+    <p>The B2B side is the revenue engine. Projects register, get verified, deposit USDC into escrow, configure quest campaigns with specific action types and reward amounts, and monitor performance through a self-serve dashboard. Billing is per verified completion — no upfront commitment beyond the escrow deposit.</p>
+
+    <div class="flow-tabs" id="projFlowTabs">
+      <button class="flow-tab active" onclick="showFlow('pf','onboard',this)">Project Onboarding</button>
+      <button class="flow-tab" onclick="showFlow('pf','campaign',this)">Campaign Creation & Funding</button>
+      <button class="flow-tab" onclick="showFlow('pf','analytics',this)">Analytics & Billing</button>
+    </div>
+
+    <!-- PROJECT ONBOARD -->
+    <div id="pf-onboard" class="flow-panel active">
+      <div class="flow-desc">Project onboarding is intentionally manual for the first cohort — the sales team handles KYC and escrow setup to ensure only legitimate projects are listed. Starting from Month 4, a self-serve onboarding flow replaces the manual process for projects above a minimum escrow threshold of $2,000 USDC.</div>
+      <div class="mermaid-box"><div class="mermaid">
+flowchart TD
+    A["Project team applies via landing page\nCompany name · Website · Twitter · Telegram"]
+    A --> B["Internal review queue\nSales team receives application"]
+    B --> C["Automated checks\nWebsite WHOIS · Twitter followers · Smart contract exists on-chain"]
+    C --> D{"Auto-checks pass?"}
+    D -->|"No"| E["Request additional info\nEmail to project founder"]
+    D -->|"Yes"| F["Manual review by sales team\nVerify legitimacy · Check community size"]
+    E --> F
+    F --> G{"Approved?"}
+    G -->|"Rejected"| H["Send rejection email with reason\nOption to reapply in 30 days"]
+    G -->|"Approved"| I["Send approval email\nLink to Project Dashboard"]
+    I --> J["Project sets up account\nConnect team wallet + company email"]
+    J --> K["KYC project entity\nCompany registration doc + director ID"]
+    K --> L{"KYC passed?"}
+    L -->|"No"| M["Request additional docs\nMax 2 resubmissions allowed"]
+    L -->|"Yes"| N["Grant Verified Project badge"]
+    N --> O["Project deposits USDC escrow\nMinimum $500 to activate account"]
+    O --> P["Escrow contract locks funds\nProject Dashboard now active"]
+    P --> Q["Project can create first campaign\nGuided wizard with template types"]
+      </div>
+      <div class="arch-caption">Diagram 6 — Project onboarding and verification flow</div>
+    </div>
+    </div>
+
+    <!-- CAMPAIGN CREATION -->
+    <div id="pf-campaign" class="flow-panel">
+      <div class="flow-desc">Campaign creation is a wizard-style flow where projects configure quest types, reward amounts per completion, user eligibility requirements, maximum completions, and campaign duration. Funds are locked in escrow before the campaign goes live — if the campaign ends with remaining budget, unused USDC is returned to the project wallet.</div>
+      <div class="mermaid-box"><div class="mermaid">
+flowchart TD
+    A["Project clicks Create Campaign"]
+    A --> B["Step 1: Campaign basics\nName · Description · Start date · End date"]
+    B --> C["Step 2: Add quests to campaign\nSelect quest types to include"]
+    C --> D["For each quest type:\nSet reward per completion\nSet maximum completions\nSet eligibility requirements"]
+    D --> E["Quest types configured:\nInstall dApp — $10 per user\nTwitter follow — $1 per user\nWallet connect — $5 per user\nDeposit — $15 per user\nVideo watch — $3 per user\nSite visit — $0.10 per user"]
+    E --> F["Step 3: Audience targeting\nMinimum wallet age · Minimum sybil score\nChain requirements · Geography (optional)"]
+    F --> G["Step 4: Budget summary\nMax completions × reward = Total budget\nWeb3Cash margin added on top"]
+    G --> H["Web3Cash margin:\n15% on CPI/CPA quests\n20% on CPS quests\n10% on CPL quests"]
+    H --> I["Step 5: Escrow confirmation\nSign transaction to lock USDC\nProject wallet → Escrow contract"]
+    I --> J{"Escrow tx confirmed?"}
+    J -->|"No"| K["Show retry — funds not locked\nCampaign not published"]
+    J -->|"Yes"| L["Campaign goes live\nQuests appear in user feed"]
+    L --> M["Real-time dashboard updates\nCompletions · Spend rate · Budget remaining"]
+    M --> N{"Budget exhausted?"}
+    N -->|"Yes"| O["Campaign auto-pauses\nProject notified to top up escrow"]
+    N -->|"No"| M
+    O --> P{"Project tops up?"}
+    P -->|"Yes"| L
+    P -->|"Campaign end date reached"| Q["Campaign closes\nUnused USDC released back to project wallet\nFull performance report generated"]
+      </div>
+      <div class="arch-caption">Diagram 7 — Campaign creation, escrow funding, and lifecycle management</div>
+    </div>
+    </div>
+
+    <!-- ANALYTICS -->
+    <div id="pf-analytics" class="flow-panel">
+      <div class="flow-desc">The project analytics dashboard gives real-time insight into campaign performance — verified completions, spend rate, cost per acquisition by quest type, user demographics (wallet age, chain, activity level), and retention signals (did the user remain active on the dApp 7 days after completing the quest). This data is what converts one-time buyers into repeat clients.</div>
+      <div class="mermaid-box"><div class="mermaid">
+flowchart TD
+    A["Project opens Analytics Dashboard"]
+    A --> B["Overview KPIs\nTotal spend · Verified completions · Avg CPA · Active campaigns"]
+    B --> C["Campaign breakdown table\nPer-campaign: completions · spend · CPA · budget remaining"]
+    C --> D["Quest-level breakdown\nBy quest type: installs vs follows vs deposits vs visits"]
+    D --> E["User quality metrics\nAvg sybil score of completers\nAvg wallet age of completers\nAvg prior dApp interactions"]
+    E --> F["Retention report\n7-day active on dApp after quest completion\n30-day retention rate"]
+    F --> G["Geographic breakdown\nCountry-level completion distribution"]
+    G --> H{"Export requested?"}
+    H -->|"CSV"| I["Generate CSV report\nAll completions with wallet addresses + tx hashes"]
+    H -->|"API"| J["Webhook delivery to project endpoint\nReal-time completion events"]
+    H -->|"No export"| K["Dashboard view only"]
+    I --> L["Send to project email or S3 URL"]
+    J --> M["Project integrates into own analytics stack"]
+    B --> N["Billing summary\nInvoice per 30-day cycle\nPer-completion itemised line items"]
+    N --> O{"Billing mode?"}
+    O -->|"Post-pay"| P["Invoice generated monthly\nStripe payment link sent"]
+    O -->|"Prepay escrow"| Q["Auto-deducted from escrow balance\nLow-balance alert at 20% remaining"]
+      </div>
+      <div class="arch-caption">Diagram 8 — Project analytics, reporting, and billing flow</div>
+    </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════ TECH ARCH ═══════════════════════════════════════ -->
+<section class="section" id="tech-arch">
+  <div class="container">
+    <div class="sec-label">Technical Architecture</div>
+    <h2>The hard engineering problems — verification,<br>fraud, smart contracts, multi-chain.</h2>
+
+    <div class="flow-tabs" id="techTabs">
+      <button class="flow-tab active" onclick="showFlow('ta','verify',this)">Verification Engine</button>
+      <button class="flow-tab" onclick="showFlow('ta','sybil',this)">Anti-Sybil Detection</button>
+      <button class="flow-tab" onclick="showFlow('ta','contract',this)">Smart Contract Escrow</button>
+      <button class="flow-tab" onclick="showFlow('ta','chain',this)">Multi-Chain Indexing</button>
+      <button class="flow-tab" onclick="showFlow('ta','api',this)">API Gateway &amp; Services</button>
+    </div>
+
+    <!-- VERIFICATION ENGINE -->
+    <div id="ta-verify" class="flow-panel active">
+      <div class="flow-desc">The verification engine is the core IP of Web3Cash. It must answer: did this specific wallet address perform this specific on-chain action, within the campaign window, with funds above the threshold, and did they actually use the product rather than simulate it? Different quest types require different verification methods — on-chain indexing for deposits, webhook events for installs, API polling for social actions.</div>
+      <div class="mermaid-box"><div class="mermaid">
+flowchart TD
+    A["Completion event received\nUser claims quest completion"]
+    A --> B["Load quest definition\nType · Requirements · Threshold · Time window"]
+    B --> C{"Quest type?"}
+    C -->|"On-chain action\nDeposit · Trade · Hold"| D["Query Alchemy Indexer\nLookup wallet tx history in block range"]
+    C -->|"dApp install\nWebhook-based"| E["Check webhook event log\nMatch user wallet + dApp session ID"]
+    C -->|"Social action\nFollow · Retweet"| F["Call Twitter / Discord API\nCheck follow status or event participation"]
+    C -->|"Site visit"| G["Check pixel event log\nMatch wallet signature + timestamp"]
+    C -->|"Video watch"| H["Check video player event\nMinimum 80% watch-time required"]
+    D --> I["Extract matching transactions\nTx hash · Block number · Amount · Timestamp"]
+    E --> I
+    F --> I
+    G --> I
+    H --> I
+    I --> J{"Evidence found?"}
+    J -->|"No evidence"| K["Mark: FAILED\nLog: no matching tx or event"]
+    J -->|"Evidence found"| L["Validate against requirements\nAmount threshold · Time window · Wallet match"]
+    L --> M{"All requirements met?"}
+    M -->|"No"| N["Mark: FAILED\nLog: specific requirement failure reason"]
+    M -->|"Yes"| O["Run anti-fraud cross-check\nSybil score · Velocity check · Bot pattern"]
+    O --> P{"Fraud signals?"}
+    P -->|"High fraud signal"| Q["Flag for manual review\nHold payout — 24hr review window"]
+    P -->|"Clean"| R["Mark: VERIFIED\nStore tx hash as proof"]
+    R --> S["Queue payout job\nBullMQ — payment service"]
+    Q --> T{"Manual review outcome?"}
+    T -->|"Legitimate"| R
+    T -->|"Fraudulent"| U["Mark: FRAUD\nBan wallet · Refund to project escrow"]
+      </div>
+      <div class="arch-caption">Diagram 9 — Verification engine · 5 quest type verification paths</div>
+    </div>
+    </div>
+
+    <!-- ANTI-SYBIL -->
+    <div id="ta-sybil" class="flow-panel">
+      <div class="flow-desc">Sybil detection runs in two phases: at registration (to set the base score) and at quest completion (to catch wallets that improved their score by farming other platforms). The score is 0–100 and is recalculated every 7 days. Projects can set minimum Sybil score thresholds for their campaigns — high-value quests (deposit $100+) typically require score 70+.</div>
+      <div class="mermaid-box"><div class="mermaid">
+flowchart TD
+    A["Wallet address submitted for scoring"]
+    A --> B["Query on-chain history\nvia Alchemy + Moralis"]
+    B --> C["Signal 1: Wallet age\n0–10 points\nAge under 7 days: 0 · Under 30 days: 3 · Over 6 months: 10"]
+    B --> D["Signal 2: Transaction count\n0–15 points\nFewer than 5 tx: 0 · 5–50 tx: 8 · Over 50 tx: 15"]
+    B --> E["Signal 3: Gas spend history\n0–15 points\nTotal ETH spent on gas as proxy for real activity"]
+    B --> F["Signal 4: Token diversity\n0–10 points\nInteractions with 3+ distinct token contracts"]
+    B --> G["Signal 5: DeFi interaction\n0–20 points\nInteracted with Uniswap · Aave · Compound · Curve etc."]
+    B --> H["Signal 6: NFT ownership history\n0–10 points\nNot fresh mints — secondary purchases preferred"]
+    B --> I["Signal 7: Social proof\n0–10 points\nLinked Twitter or Discord with minimum followers / activity"]
+    B --> J["Signal 8: Cross-platform checks\n0–10 points\nNot flagged on Gitcoin Passport or Chainalysis\nNo known mixer interactions"]
+    C --> K["Sum all signals\nMax score: 100"]
+    D --> K
+    E --> K
+    F --> K
+    G --> K
+    H --> K
+    I --> K
+    J --> K
+    K --> L["Store score + breakdown\nRecalculate every 7 days"]
+    L --> M{"Threshold check\nfor current quest"}
+    M -->|"Score meets threshold"| N["Allow quest participation"]
+    M -->|"Score too low"| O["Block or limit participation\nShow score improvement tips to user"]
+    O --> P["Tips: Link social accounts · Use DeFi · Age wallet\nScore updates weekly"]
+      </div>
+      <div class="arch-caption">Diagram 10 — Anti-Sybil scoring engine · 8 on-chain and off-chain signals</div>
+    </div>
+    </div>
+
+    <!-- SMART CONTRACT -->
+    <div id="ta-contract" class="flow-panel">
+      <div class="flow-desc">The escrow smart contract is the trust backbone of Web3Cash. It holds project USDC, releases it only to verified wallet addresses via backend-signed transactions, and returns unused funds when campaigns end. The contract is intentionally minimal — less code means less attack surface. All complex business logic lives in the backend, not on-chain.</div>
+      <div class="mermaid-box"><div class="mermaid">
+flowchart TD
+    A["Project deposits USDC\nApprove + transferFrom to Escrow contract"]
+    A --> B["Escrow contract records\ncampaignId · projectWallet · amount · expiry"]
+    B --> C["Funds locked in contract\nProject cannot withdraw until campaign ends or is cancelled"]
+    C --> D["User completes verified quest\nBackend generates payout authorization"]
+    D --> E["Backend signs payout message\nrecipient · amount · campaignId · nonce\nSigned with OTWL backend private key"]
+    E --> F["Backend calls Escrow.payout()\nPasses signed message + proof"]
+    F --> G["Contract verifies signature\necrecover confirms OTWL signer key"]
+    G --> H{"Signature valid?"}
+    H -->|"No"| I["Revert: InvalidSigner\nPayout rejected — no funds moved"]
+    H -->|"Yes"| J["Check nonce not reused\nReplay attack prevention"]
+    J --> K{"Nonce fresh?"}
+    K -->|"No"| L["Revert: NonceUsed\nDuplicate payout rejected"]
+    K -->|"Yes"| M["Transfer USDC to user wallet\ncampaignBalance decremented"]
+    M --> N["Emit PayoutReleased event\nrecipient · amount · campaignId · txHash"]
+    N --> O["Backend listens to event\nMark payout as on-chain confirmed in DB"]
+    O --> P["Campaign end or cancellation"]
+    P --> Q["Backend calls Escrow.refund()\nSigned by OTWL admin key"]
+    Q --> R["Remaining USDC returned\nTo original project wallet"]
+    R --> S["Emit CampaignClosed event\nrefundAmount · projectWallet"]
+      </div>
+      <div class="arch-caption">Diagram 11 — Smart contract escrow · deposit · verified payout · refund lifecycle</div>
+    </div>
+    </div>
+
+    <!-- MULTI-CHAIN -->
+    <div id="ta-chain" class="flow-panel">
+      <div class="flow-desc">Multi-chain indexing is required because Web3 users are spread across Ethereum, BNB Chain, Polygon, Base, and Arbitrum. Each chain requires a separate indexer configuration. Verification jobs fan out to the appropriate chain indexer based on the quest's chain requirement. Phase 1 covers EVM chains. Solana is Phase 2.</div>
+      <div class="mermaid-box"><div class="mermaid">
+flowchart TD
+    A["Verification job received\nWallet address + quest requirements"]
+    A --> B{"Which chain?"}
+    B -->|"Ethereum Mainnet"| C["Alchemy ETH Webhook\nWebhook subscription per wallet"]
+    B -->|"BNB Chain"| D["Moralis BNB Stream\nReal-time tx events"]
+    B -->|"Polygon"| E["Alchemy Polygon\nRPC + webhook"]
+    B -->|"Base"| F["Base Node via Alchemy\nEVM compatible"]
+    B -->|"Arbitrum"| G["Arbitrum RPC\nL2 indexing — faster finality"]
+    C --> H["Extract wallet transactions\nFilter by block range and quest window"]
+    D --> H
+    E --> H
+    F --> H
+    G --> H
+    H --> I["Normalise tx data\nStandard format regardless of chain"]
+    I --> J["Match against quest criteria\nContract address · Function selector · Amount"]
+    J --> K["Verification result returned\nTo verification service"]
+    K --> L{"Future: Solana Phase 2"}
+    L --> M["Solana RPC via Helius\nInstruction parsing for Solana programs"]
+    M --> N["Wrapped into same standard format\nChain-agnostic verification interface"]
+    N --> K
+    H --> O["Indexer health monitoring\nDatadog alert if event lag exceeds 30s"]
+    O --> P{"Lag detected?"}
+    P -->|"Yes"| Q["Switch to backup indexer\nMoralis as fallback for Alchemy"]
+    P -->|"No"| H
+      </div>
+      <div class="arch-caption">Diagram 12 — Multi-chain indexer architecture · EVM now · Solana Phase 2</div>
+    </div>
+    </div>
+
+    <!-- API GATEWAY -->
+    <div id="ta-api" class="flow-panel">
+      <div class="flow-desc">Every request flows through a unified API Gateway that handles authentication (JWT from wallet signature), rate limiting (per-IP and per-wallet), and routing to the appropriate microservice. Sensitive routes (payouts, KYC, admin) have additional auth layers. All service communication is internal via gRPC — only the gateway is public-facing.</div>
+      <div class="mermaid-box"><div class="mermaid">
+flowchart TD
+    A["Incoming HTTP request\nPublic API endpoint"]
+    A --> B["Cloudflare WAF\nDDoS filter · Bot traffic block · Geo restrictions"]
+    B --> C{"Request type?"}
+    C -->|"Preflight CORS"| D["Return CORS headers\n200 OK"]
+    C -->|"API request"| E["Rate limiter check\nIP-based: 100 req/min · Wallet-based: 50 req/min"]
+    E --> F{"Rate limit hit?"}
+    F -->|"Yes"| G["429 Too Many Requests\nRetry-After header"]
+    F -->|"No"| H{"Auth required?"}
+    H -->|"Public routes\nQuest discovery · Project listings"| I["Skip auth — serve public data from Redis cache"]
+    H -->|"Authenticated routes"| J["Extract JWT from Authorization header"]
+    J --> K["Verify JWT signature\nCheck expiry · Check wallet in DB"]
+    K --> L{"JWT valid?"}
+    L -->|"No"| M["401 Unauthorized"]
+    L -->|"Yes"| N["Attach user context to request\nuserId · walletAddress · tier · sybilScore"]
+    N --> O{"Route target?"}
+    O -->|"/api/quests"| P["Quest Service\nPort 3001"]
+    O -->|"/api/users"| Q["User Service\nPort 3002"]
+    O -->|"/api/verify"| R["Verification Service\nPort 3003"]
+    O -->|"/api/payments"| S["Payment Service\nPort 3004 — extra auth: 2FA for large amounts"]
+    O -->|"/api/referrals"| T["Referral Service\nPort 3005"]
+    O -->|"/api/subscriptions"| U["Subscription Service\nPort 3006"]
+    O -->|"/api/analytics"| V["Analytics Service\nPort 3007"]
+    P --> W["Service returns response"]
+    Q --> W
+    R --> W
+    S --> W
+    T --> W
+    U --> W
+    V --> W
+    W --> X["Log request to Datadog\nLatency · Status · Route · UserId"]
+    X --> Y["Return response to client\nWith request ID for debugging"]
+      </div>
+      <div class="arch-caption">Diagram 13 — API Gateway · auth flow · rate limiting · service routing</div>
+    </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════ DATA ═══════════════════════════════════════ -->
+<section class="section" id="data">
+  <div class="container">
+    <div class="sec-label">Data Architecture</div>
+    <h2>Database schema — every entity<br>and relationship that matters.</h2>
+    <p>The core data model has 10 primary entities. Users and Projects are the two top-level actors. Campaigns belong to Projects, Quests belong to Campaigns, and QuestCompletions are the transactional core. VerificationLogs provide the audit trail. Referrals and Payouts handle the financial flows. Subscriptions manage tier access.</p>
+
+    <div class="mermaid-box">
+      <div class="mermaid">
+erDiagram
+    USERS ||--o{ WALLETS : "owns"
+    USERS ||--o{ QUEST_COMPLETIONS : "submits"
+    USERS ||--o{ REFERRALS : "generates"
+    USERS ||--o{ SUBSCRIPTIONS : "holds"
+    USERS ||--o{ PAYOUTS : "receives"
+
+    PROJECTS ||--o{ CAMPAIGNS : "creates"
+    CAMPAIGNS ||--o{ QUESTS : "contains"
+    QUESTS ||--o{ QUEST_COMPLETIONS : "fulfilled by"
+    QUEST_COMPLETIONS ||--|| VERIFICATION_LOGS : "verified via"
+    QUEST_COMPLETIONS ||--o{ PAYOUTS : "triggers"
+
+    USERS {
+        uuid id PK
+        string wallet_address
+        string email
+        int sybil_score
+        string sybil_tier
+        bool kyc_verified
+        timestamp created_at
+        timestamp last_active
+    }
+    WALLETS {
+        uuid id PK
+        uuid user_id FK
+        string address
+        string chain
+        bool is_primary
+        timestamp verified_at
+    }
+    PROJECTS {
+        uuid id PK
+        string name
+        string website
+        string twitter_handle
+        bool verified
+        string kyc_status
+        timestamp approved_at
+    }
+    CAMPAIGNS {
+        uuid id PK
+        uuid project_id FK
+        string name
+        decimal budget_usdc
+        decimal spent_usdc
+        decimal remaining_usdc
+        timestamp starts_at
+        timestamp ends_at
+        string status
+    }
+    QUESTS {
+        uuid id PK
+        uuid campaign_id FK
+        string type
+        decimal reward_usdc
+        int max_completions
+        int current_completions
+        jsonb requirements
+        int min_sybil_score
+    }
+    QUEST_COMPLETIONS {
+        uuid id PK
+        uuid quest_id FK
+        uuid user_id FK
+        string status
+        timestamp submitted_at
+        timestamp verified_at
+        decimal reward_amount
+    }
+    VERIFICATION_LOGS {
+        uuid id PK
+        uuid completion_id FK
+        string method
+        string tx_hash
+        string block_number
+        bool passed
+        string failure_reason
+        jsonb raw_evidence
+    }
+    REFERRALS {
+        uuid id PK
+        uuid referrer_id FK
+        uuid referee_id FK
+        int level
+        decimal earned_usdc_total
+        timestamp created_at
+    }
+    PAYOUTS {
+        uuid id PK
+        uuid user_id FK
+        uuid completion_id FK
+        decimal amount_usdc
+        string payout_type
+        string wallet_address
+        string tx_hash
+        string status
+        timestamp initiated_at
+        timestamp confirmed_at
+    }
+    SUBSCRIPTIONS {
+        uuid id PK
+        uuid user_id FK
+        string tier
+        decimal monthly_fee
+        string stripe_sub_id
+        timestamp current_period_end
+        bool is_active
+    }
+      </div>
+      <div class="arch-caption">Diagram 14 — Core database schema · 10 entities · all relationships</div>
+    </div>
+
+    <div class="divider"></div>
+    <h3>Key data decisions</h3>
+    <div class="two-col">
+      <div class="info-box">
+        <div class="info-box-title">Indexing Strategy</div>
+        <div class="info-row"><span class="info-label">quest_completions</span><span class="info-val">Index on (quest_id, user_id) — prevents duplicate completions, fastest check path</span></div>
+        <div class="info-row"><span class="info-label">wallets</span><span class="info-val">Unique index on (address, chain) — prevents same wallet registered twice</span></div>
+        <div class="info-row"><span class="info-label">payouts</span><span class="info-val">Index on (user_id, status) — powers withdrawal history page</span></div>
+        <div class="info-row"><span class="info-label">verification_logs</span><span class="info-val">tx_hash indexed — idempotency check prevents double-payout from same tx</span></div>
+        <div class="info-row"><span class="info-label">referrals</span><span class="info-val">Index on (referrer_id, level) — powers referral tree queries</span></div>
+      </div>
+      <div class="info-box">
+        <div class="info-box-title">Cache Strategy (Redis)</div>
+        <div class="info-row"><span class="info-label">Quest feed</span><span class="info-val">Cached 60s — high read, low write · invalidated on quest update</span></div>
+        <div class="info-row"><span class="info-label">User sybil score</span><span class="info-val">Cached 7 days · recalculated on schedule not per-request</span></div>
+        <div class="info-row"><span class="info-label">Project campaign stats</span><span class="info-val">Cached 30s · real-time feel without DB hammering</span></div>
+        <div class="info-row"><span class="info-label">User balance</span><span class="info-val">NOT cached — always read from DB to prevent stale balance on withdrawal</span></div>
+        <div class="info-row"><span class="info-label">Rate limit counters</span><span class="info-val">Redis INCR with TTL — atomic, fast, no DB overhead</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════ BUSINESS MODEL ═══════════════════════════════════════ -->
+<section class="section" id="business">
+  <div class="container">
+    <div class="sec-label">Business Model & Revenue</div>
+    <h2>Three revenue streams. One flywheel.<br>Every user makes the platform more valuable.</h2>
+
+    <div class="flow-tabs" id="bizTabs">
+      <button class="flow-tab active" onclick="showFlow('biz','revenue',this)">Revenue Split Flow</button>
+      <button class="flow-tab" onclick="showFlow('biz','subscription',this)">Subscription Tier Flow</button>
+      <button class="flow-tab" onclick="showFlow('biz','flywheel',this)">Growth Flywheel</button>
+    </div>
+
+    <!-- REVENUE SPLIT -->
+    <div id="biz-revenue" class="flow-panel active">
+      <div class="flow-desc">For every verified quest completion: the project pays the gross amount, Web3Cash takes a 15% margin, the referral layer takes up to 13% (10% level 1 + 3% level 2), and the user receives the net reward. Across 100,000 monthly completions at $10 average reward, this generates $150,000/month in gross margin before referral payouts.</div>
+      <div class="mermaid-box"><div class="mermaid">
+flowchart TD
+    A["Project funds quest\n$10.00 gross per completion + 15% Web3Cash fee\nProject pays: $11.50 per completion"]
+    A --> B["Web3Cash receives $11.50\nEscrow contract holds full amount"]
+    B --> C["$10.00 allocated to reward pool\n$1.50 Web3Cash platform margin"]
+    C --> D{"Referral attribution?"}
+    D -->|"Direct — no referral"| E["User receives full $10.00\nWeb3Cash keeps $1.50 margin"]
+    D -->|"Level 1 referral exists"| F["Deduct 10% referral fee\nFrom gross $10: $1.00 to referrer"]
+    F --> G["User receives $9.00\nReferrer receives $1.00\nWeb3Cash keeps $1.50"]
+    G --> H{"Level 2 referral?"}
+    H -->|"Yes"| I["Deduct 3% level 2 fee\nFrom gross $10: $0.30 to L2 referrer"]
+    I --> J["User receives $8.70\nL1 referrer: $1.00\nL2 referrer: $0.30\nWeb3Cash keeps $1.50"]
+    H -->|"No"| G
+    D -->|"Both levels"| I
+    J --> K["Platform margin: $1.50 always fixed\nRegardless of referral depth"]
+    K --> L["Revenue Stream 1: CPA margin\nTarget: $150k/month at 100k completions"]
+    L --> M["Revenue Stream 2: Subscriptions\nCrodeye $5/$10/$25/mo\nTarget: $30k/month at 2k subscribers"]
+    M --> N["Revenue Stream 3: Exclusive codes\nProject pays premium for early-access listings\nTarget: $20k/month"]
+    N --> O["Total target MRR at scale\n$200k/month — $2.4M ARR"]
+      </div>
+      <div class="arch-caption">Diagram 15 — Revenue split model · 3 revenue streams · margin calculation</div>
+    </div>
+    </div>
+
+    <!-- SUBSCRIPTION -->
+    <div id="biz-subscription" class="flow-panel">
+      <div class="flow-desc">The Crodeye subscription tier converts engaged users into recurring revenue. Three tiers offer progressively better rewards, higher referral rates, priority verification, and exclusive quest access. The tier is stored on the user's subscription record and checked at quest eligibility time — premium quests are only visible to tier subscribers.</div>
+      <div class="mermaid-box"><div class="mermaid">
+flowchart TD
+    A["User on free tier\nBase sybil score · Standard quests · Standard rewards"]
+    A --> B["User discovers Crodeye subscription\nIn dashboard or via quest gate"]
+    B --> C{"Which tier?"}
+    C -->|"Starter — $5/month"| D["Benefits:\n+10% reward multiplier on all quests\nAccess to Starter-only quests\nPriority verification — 2x faster\nLevel 1 referral boosted: 12% instead of 10%"]
+    C -->|"Pro — $10/month"| E["Benefits:\n+25% reward multiplier\nAccess to Pro + Starter quests\nPriority verification — 4x faster\nLevel 1 referral: 14% · Level 2: 5%\nEarly access to new quest campaigns 24hrs before public"]
+    C -->|"Elite — $25/month"| F["Benefits:\n+50% reward multiplier\nAccess to all exclusive tiers\nInstant verification\nLevel 1: 15% · Level 2: 7%\nExclusive codes — access to unreleased dApps pre-launch\nDedicated support channel"]
+    D --> G["User clicks Subscribe"]
+    E --> G
+    F --> G
+    G --> H["Stripe checkout — card or crypto\nMonthly recurring billing"]
+    H --> I{"Payment successful?"}
+    I -->|"No"| J["Payment failed notification\nRetry link — stays on free tier"]
+    I -->|"Yes"| K["Subscription record created\nTier activated immediately"]
+    K --> L["All future quests show tier rewards\nReward multiplier applied at payout time"]
+    L --> M["Renewal reminder sent 3 days before\nAuto-renews unless cancelled"]
+    M --> N{"Cancelled?"}
+    N -->|"Yes"| O["Tier downgraded at period end\nNo refund for partial month"]
+    N -->|"No"| M
+    O --> P["User returns to free tier\nAll earned rewards retained permanently"]
+      </div>
+      <div class="arch-caption">Diagram 16 — Crodeye subscription tiers · benefits · billing lifecycle</div>
+    </div>
+    </div>
+
+    <!-- FLYWHEEL -->
+    <div id="biz-flywheel" class="flow-panel">
+      <div class="flow-desc">The growth flywheel: more users means more data to prove quest ROI to projects. More projects means bigger reward budgets. Bigger budgets means better rewards. Better rewards means more users. The referral system injects a viral coefficient — each user who earns meaningfully is incentivised to recruit. Every loop compounds.</div>
+      <div class="mermaid-box"><div class="mermaid">
+flowchart TD
+    A["More users join Web3Cash\nDriven by referral + USDC rewards"]
+    A --> B["Higher quest completion volume\nMore on-chain verification data"]
+    B --> C["Better proof of ROI for projects\nCost per acquired user becomes verifiable"]
+    C --> D["More projects list campaigns\nHigher-value quest budgets"]
+    D --> E["More USDC in reward pool\nBetter and more diverse quests available"]
+    E --> F["Higher user retention\nMore completions per user per month"]
+    F --> G["More subscription conversions\nUsers want multipliers on more quests"]
+    G --> H["Higher ARPU\nSubs + referrals + base completions"]
+    H --> I["More platform revenue\nInvest in better verification + new chains"]
+    I --> J["Faster verification · More chains · More quest types"]
+    J --> A
+    A --> K["Referral engine fires\nEvery earning user recruits friends"]
+    K --> L["Viral coefficient k > 1\nEach user brings more than 1 new user"]
+    L --> A
+    D --> M["Project repeat purchase\nCampaign 2 · Campaign 3 · Retargeting quests"]
+    M --> D
+      </div>
+      <div class="arch-caption">Diagram 17 — Growth flywheel · compounding loops · viral coefficient</div>
+    </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════ ROADMAP ═══════════════════════════════════════ -->
+<section class="section" id="roadmap">
+  <div class="container">
+    <div class="sec-label">Product Roadmap</div>
+    <h2>4 phases. 12 months to scale.</h2>
+
+    <div class="mile-grid">
+      <div class="mile-card">
+        <div class="mile-hdr">
+          <div class="mile-title">Phase 1 — MVP</div>
+          <div class="mile-tag">Month 1–2 · 2 devs</div>
+        </div>
+        <div class="mile-items">
+          <div class="mile-item"><div class="mi-dot"></div>Wallet connect auth (MetaMask + WalletConnect)</div>
+          <div class="mile-item"><div class="mi-dot"></div>Quest listing page — 5 manually created quests</div>
+          <div class="mile-item"><div class="mi-dot"></div>Basic Sybil score (wallet age + tx count only)</div>
+          <div class="mile-item"><div class="mi-dot"></div>On-chain verification for deposit quests (ETH only)</div>
+          <div class="mile-item"><div class="mi-dot"></div>USDC payout via Circle API — manual trigger</div>
+          <div class="mile-item"><div class="mi-dot"></div>Referral tracking (Level 1 only)</div>
+          <div class="mile-item"><div class="mi-dot"></div>Escrow smart contract — deployed on Goerli testnet</div>
+          <div class="mile-item"><div class="mi-dot"></div><strong>Goal: 5 projects, 500 users, first $10k revenue</strong></div>
+        </div>
+      </div>
+      <div class="mile-card">
+        <div class="mile-hdr">
+          <div class="mile-title">Phase 2 — Verification Engine</div>
+          <div class="mile-tag">Month 3–4 · 3 devs</div>
+        </div>
+        <div class="mile-items">
+          <div class="mile-item"><div class="mi-dot"></div>All 6 quest types — install, follow, connect, deposit, video, visit</div>
+          <div class="mile-item"><div class="mi-dot"></div>Full 8-signal Sybil scoring engine</div>
+          <div class="mile-item"><div class="mi-dot"></div>Anti-fraud manual review queue</div>
+          <div class="mile-item"><div class="mi-dot"></div>Level 2 referral attribution</div>
+          <div class="mile-item"><div class="mi-dot"></div>BNB Chain + Polygon indexing added</div>
+          <div class="mile-item"><div class="mi-dot"></div>Project self-serve dashboard — campaign creation wizard</div>
+          <div class="mile-item"><div class="mi-dot"></div>Escrow contract on mainnet — audited by a third party</div>
+          <div class="mile-item"><div class="mi-dot"></div><strong>Goal: 50 projects, 10k users, $100k MRR</strong></div>
+        </div>
+      </div>
+      <div class="mile-card">
+        <div class="mile-hdr">
+          <div class="mile-title">Phase 3 — Subscriptions & Scale</div>
+          <div class="mile-tag">Month 5–8 · 4 devs</div>
+        </div>
+        <div class="mile-items">
+          <div class="mile-item"><div class="mi-dot"></div>Crodeye subscription tiers — Stripe billing + crypto billing</div>
+          <div class="mile-item"><div class="mi-dot"></div>Exclusive quest access codes — premium placement for projects</div>
+          <div class="mile-item"><div class="mi-dot"></div>KYC integration (Synaps or Persona) for $500+ withdrawals</div>
+          <div class="mile-item"><div class="mi-dot"></div>Full project analytics dashboard with CSV export</div>
+          <div class="mile-item"><div class="mi-dot"></div>Base and Arbitrum chain support</div>
+          <div class="mile-item"><div class="mi-dot"></div>Mobile-responsive PWA — iOS + Android browser support</div>
+          <div class="mile-item"><div class="mi-dot"></div>API webhooks for projects — real-time completion events</div>
+          <div class="mile-item"><div class="mi-dot"></div><strong>Goal: 200 projects, 50k users, $500k MRR</strong></div>
+        </div>
+      </div>
+      <div class="mile-card">
+        <div class="mile-hdr">
+          <div class="mile-title">Phase 4 — Mobile & Expansion</div>
+          <div class="mile-tag">Month 9–12 · 5+ devs</div>
+        </div>
+        <div class="mile-items">
+          <div class="mile-item"><div class="mi-dot"></div>Native mobile app — React Native iOS + Android</div>
+          <div class="mile-item"><div class="mi-dot"></div>Solana chain indexing (Helius)</div>
+          <div class="mile-item"><div class="mi-dot"></div>User reputation score — on-chain attestation via EAS</div>
+          <div class="mile-item"><div class="mi-dot"></div>Quest streak bonuses — daily/weekly completion incentives</div>
+          <div class="mile-item"><div class="mi-dot"></div>Project retargeting — quests targeting users who completed related campaigns</div>
+          <div class="mile-item"><div class="mi-dot"></div>White-label SDK — projects embed Web3Cash quest widget in their own UI</div>
+          <div class="mile-item"><div class="mi-dot"></div>Seed round raise — with 6 months revenue data as proof</div>
+          <div class="mile-item"><div class="mi-dot"></div><strong>Goal: 500+ projects, 200k users, $2M MRR</strong></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════ RISKS ═══════════════════════════════════════ -->
+<section class="section" id="risks">
+  <div class="container">
+    <div class="sec-label">Risk Register</div>
+    <h2>What can kill this product — and<br>exactly how to prevent it.</h2>
+
+    <div class="risk-list">
+      <div class="risk-item">
+        <div class="risk-n">01</div>
+        <div>
+          <div class="risk-sev sev-crit">Critical</div>
+          <div class="risk-title">Sybil attack drains project campaign budgets in hours</div>
+          <div class="risk-body">Bot farms with thousands of fresh wallets complete all quests before real users can access them. Projects get refunded nothing — they see 500 completions but zero real users. One incident destroys platform credibility. Mitigation: all quests gate on minimum Sybil score 40 by default; no completion is paid without a 30-minute hold window; velocity limits (max 5 completions per wallet per hour) fire before the escrow releases. Contract has a payout pause function controlled by a multisig admin key.</div>
+        </div>
+      </div>
+      <div class="risk-item">
+        <div class="risk-n">02</div>
+        <div>
+          <div class="risk-sev sev-crit">Critical</div>
+          <div class="risk-title">Smart contract vulnerability — escrow funds stolen</div>
+          <div class="risk-body">Any bug in the escrow contract could result in loss of all project-deposited USDC. This is existential — one exploit ends the company. Mitigation: contract is minimal by design (under 200 lines); third-party audit before mainnet deployment (Certik, Spearbit, or Code4rena); bug bounty program from day one; circuit breaker — admin multisig can pause all payouts if anomalous drain detected; campaign TVL capped at $50k per campaign until audit completed.</div>
+        </div>
+      </div>
+      <div class="risk-item">
+        <div class="risk-n">03</div>
+        <div>
+          <div class="risk-sev sev-crit">Critical</div>
+          <div class="risk-title">Regulatory classification as unlicensed money transmitter</div>
+          <div class="risk-body">Paying real USDC to users globally could trigger FinCEN (US), FCA (UK), and RBI (India) money transmission requirements. Licenses cost $500k+ and take 18 months. Mitigation: structure all payouts as stablecoin rewards not fiat; incorporate in a crypto-friendly jurisdiction (Cayman Islands, BVI, or UAE) before launch; KYC gate at $500 creates a defensible compliance posture; obtain a legal opinion in Month 2 — not Month 6.</div>
+        </div>
+      </div>
+      <div class="risk-item">
+        <div class="risk-n">04</div>
+        <div>
+          <div class="risk-sev sev-high">High</div>
+          <div class="risk-title">Referral economics collapse into a Ponzi-like structure at scale</div>
+          <div class="risk-body">If a user recruits 5 friends who each recruit 5 more, the referral payout tree can exceed margin on high-completion-volume users. Mitigation: hard cap at 2 levels — no exceptions; referral percentages (10% / 3%) are calculated on gross reward before Web3Cash margin, meaning the margin always covers the referral cost; if total referral payouts in a given month exceed 30% of gross margin, the system flags for review and temporarily reduces the L2 rate.</div>
+        </div>
+      </div>
+      <div class="risk-item">
+        <div class="risk-n">05</div>
+        <div>
+          <div class="risk-sev sev-high">High</div>
+          <div class="risk-title">Verification false positives — real users blocked as bots</div>
+          <div class="risk-body">Over-aggressive Sybil scoring blocks legitimate new wallet users (especially in emerging markets where users have less on-chain history). Mitigation: social proof pathway — linking Twitter or Discord with minimum activity unlocks quests even for young wallets; manual review queue processes appeals within 24 hours; separate Sybil thresholds per quest tier — basic quests require score 20+, high-value deposit quests require 70+; monitor false positive rate weekly and adjust signal weights accordingly.</div>
+        </div>
+      </div>
+      <div class="risk-item">
+        <div class="risk-n">06</div>
+        <div>
+          <div class="risk-sev sev-high">High</div>
+          <div class="risk-title">Indexer downtime causes verification failures during high-traffic campaigns</div>
+          <div class="risk-body">If Alchemy or Moralis has an outage during a major campaign launch, thousands of legitimate completions cannot be verified. Users don't get paid. Project claims the platform is broken. Mitigation: dual-indexer architecture — Alchemy primary, Moralis fallback with automatic switchover; verification jobs have a 4-hour retry window before failing permanently; status page showing indexer health in real time; Datadog alert fires to on-call if event lag exceeds 60 seconds.</div>
+        </div>
+      </div>
+      <div class="risk-item">
+        <div class="risk-n">07</div>
+        <div>
+          <div class="risk-sev sev-med">Medium</div>
+          <div class="risk-title">Competitor (Layer3, Galxe) copies the USDC payout model</div>
+          <div class="risk-body">Galxe has 15M users and could add USDC payouts overnight. Layer3 is growing fast. Mitigation: the moat is not the USDC idea — it's the verified-payout proof (the verification engine), the referral network effects, and the project relationships. Focus on locking in 50+ projects with annual contracts by Month 6. Project switching cost is high once their analytics data, user history, and webhook integrations are built around Web3Cash.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════ SUMMARY ═══════════════════════════════════════ -->
+<section class="section" id="summary">
+  <div class="container">
+    <div class="sec-label">At a Glance</div>
+    <h2>Everything the team needs to know<br>before writing a single line of code.</h2>
+
+    <table class="sum-table">
+      <tbody>
+        <tr><td>Product</td><td>Web3Cash — CPA/CPI performance marketing network for Web3 dApps, with real USDC cashback for users</td></tr>
+        <tr><td>Core mechanic</td><td>Projects fund USDC escrow → users complete verified on-chain actions → users earn real USDC cashback → Web3Cash takes 15% margin</td></tr>
+        <tr><td>Viral engine</td><td>10% lifetime Level 1 referral + 3% Level 2 referral · Capped at 2 levels · Attribution stored on-chain</td></tr>
+        <tr><td>Revenue stream 1</td><td>CPA/CPI/CPL/CPS margin — 15% on all verified quest completions · Target $150k/month at 100k completions</td></tr>
+        <tr><td>Revenue stream 2</td><td>Crodeye subscriptions — $5/$10/$25/month · Reward multipliers + exclusive access · Target $30k/month at 2k subs</td></tr>
+        <tr><td>Revenue stream 3</td><td>Exclusive access codes — projects pay premium for pre-launch placement · Target $20k/month</td></tr>
+        <tr><td>Quest types</td><td>dApp install · Wallet connect · Deposit · Twitter follow · Video watch · Site visit · Custom on-chain actions</td></tr>
+        <tr><td>Anti-fraud</td><td>8-signal Sybil scoring engine · Velocity limits · 30-min payout hold · Manual review queue · Bot pattern detection</td></tr>
+        <tr><td>Smart contract</td><td>Minimal escrow (Solidity) · Third-party audit required · Multisig admin key · Payout pause circuit breaker</td></tr>
+        <tr><td>Chain support (Phase 1)</td><td>Ethereum, BNB Chain, Polygon, Base, Arbitrum · Dual indexer: Alchemy primary + Moralis fallback</td></tr>
+        <tr><td>Chain support (Phase 2)</td><td>Solana (Helius) · TON · Aptos (roadmap items)</td></tr>
+        <tr><td>Tech stack</td><td>Next.js 14 · wagmi v2 · Node.js + Fastify · PostgreSQL · Redis + BullMQ · Alchemy · Circle USDC · Stripe</td></tr>
+        <tr><td>KYC / Compliance</td><td>Persona or Synaps for $500+ withdrawals · Stablecoin rewards not fiat · Cayman/BVI incorporation · Legal opinion Month 2</td></tr>
+        <tr><td>Phase 1 targets</td><td>5 projects · 500 users · $10k MRR · Month 2</td></tr>
+        <tr><td>Phase 2 targets</td><td>50 projects · 10k users · $100k MRR · Month 4</td></tr>
+        <tr><td>Phase 3 targets</td><td>200 projects · 50k users · $500k MRR · Month 8</td></tr>
+        <tr><td>Phase 4 targets</td><td>500+ projects · 200k users · $2M MRR · Month 12 · Raise seed round</td></tr>
+        <tr><td>Critical risks</td><td>Sybil attacks · Smart contract exploit · Regulatory money transmission · Referral economics collapse</td></tr>
+        <tr><td>Primary moat</td><td>Verification engine IP · Referral network effects · Project data lock-in · USDC payout as differentiator</td></tr>
+        <tr><td>Diagrams in this plan</td><td>17 mermaid diagrams covering architecture · user flows · project flows · verification · anti-Sybil · smart contract · multi-chain · ERD · revenue · referral · subscription · flywheel</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="container">
+    <h2>Ship the verification engine first.</h2>
+    <p>Everything else is secondary. If you can prove an on-chain action is real, the business works. If you can't, nothing else matters.</p>
+    <div style="margin-top:48px;padding-top:24px;border-top:1px solid #1a1a1a;">
+      <p style="font-size:12px;">Web3Cash · Product Plan v1.0 · April 2026 · 17 Architecture Diagrams</p>
+      <p style="font-size:11px;margin-top:6px;color:#444;">For engineering team, product management, and investor due diligence</p>
+    </div>
+  </div>
+</footer>
+
+<script>
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'neutral',
+  themeVariables: {
+    primaryColor: '#f0ede8',
+    primaryTextColor: '#0a0a0a',
+    primaryBorderColor: '#d4d2cc',
+    lineColor: '#6b6860',
+    secondaryColor: '#e8e5e0',
+    tertiaryColor: '#ffffff',
+    fontFamily: 'Inter, sans-serif',
+    fontSize: '12px',
+    edgeLabelBackground: '#f7f6f3'
+  },
+  flowchart: { htmlLabels: true, curve: 'basis', useMaxWidth: true },
+  er: { useMaxWidth: true }
+});
+
+async function renderAllDiagrams() {
+  var stage = document.createElement('div');
+  stage.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:900px;visibility:hidden;';
+  document.body.appendChild(stage);
+  var nodes = Array.from(document.querySelectorAll('.mermaid'));
+  var counter = 0;
+  for (var i = 0; i < nodes.length; i++) {
+    var node = nodes[i];
+    var src = node.textContent.trim();
+    if (!src) continue;
+    var placeholder = document.createComment('mp-' + i);
+    node.parentNode.insertBefore(placeholder, node);
+    stage.appendChild(node);
+    try {
+      var id = 'mg' + (counter++);
+      var result = await mermaid.render(id, src);
+      var svgStr = result.svg || result;
+      node.innerHTML = svgStr;
+      var svg = node.querySelector('svg');
+      if (svg) {
+        svg.removeAttribute('width');
+        svg.removeAttribute('height');
+        svg.style.maxWidth = '100%';
+        svg.style.height = 'auto';
+      }
+    } catch(err) {
+      node.innerHTML = '<p style="color:#c00;font-size:12px;padding:8px;font-family:monospace;border:1px solid #fcc;background:#fff5f5;">Diagram error: ' + (err.message || String(err)) + '</p>';
+    }
+    placeholder.parentNode.insertBefore(node, placeholder);
+    placeholder.parentNode.removeChild(placeholder);
+  }
+  document.body.removeChild(stage);
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', renderAllDiagrams);
+} else {
+  renderAllDiagrams();
+}
+
+function showFlow(prefix, name, btn) {
+  var allPanels = document.querySelectorAll('[id^="' + prefix + '-"]');
+  allPanels.forEach(function(p) { p.classList.remove('active'); });
+  var panel = document.getElementById(prefix + '-' + name);
+  if (panel) panel.classList.add('active');
+  if (btn) {
+    var tabBar = btn.closest('.flow-tabs');
+    if (tabBar) tabBar.querySelectorAll('.flow-tab').forEach(function(t) { t.classList.remove('active'); });
+    btn.classList.add('active');
+  }
+}
+
+function navTo(id) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  var top = el.getBoundingClientRect().top + window.pageYOffset - 60;
+  window.scrollTo({ top: top, behavior: 'smooth' });
+  document.querySelectorAll('.nav-link').forEach(function(l) { l.classList.remove('active'); });
+}
+
+window.addEventListener('scroll', function() {
+  var current = '';
+  document.querySelectorAll('section[id]').forEach(function(s) {
+    if (window.pageYOffset >= s.offsetTop - 120) current = s.id;
+  });
+  document.querySelectorAll('.nav-link').forEach(function(l) {
+    l.classList.remove('active');
+    var oc = l.getAttribute('onclick') || '';
+    if (current && oc.indexOf("'" + current + "'") !== -1) l.classList.add('active');
+  });
+});
+</script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAccount, useSendTransaction, useWaitForTransactionReceipt, useSwitchChain, useChainId } from "wagmi";
 import { avalancheFuji } from "@/components/web3/WalletProvider";
 import { parseEther, parseGwei } from "viem";
@@ -39,6 +39,7 @@ export function WalletDeployModal({
   const [contractAddress, setContractAddress] = useState<string | null>(null);
   const [verificationState, setVerificationState] = useState<"idle" | "pending" | "verified" | "failed">("idle");
   const [verificationUrl, setVerificationUrl] = useState<string | null>(null);
+  const verificationPersistedRef = useRef(false);
 
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
@@ -144,6 +145,7 @@ export function WalletDeployModal({
     setContractAddress(null);
     setVerificationState("idle");
     setVerificationUrl(null);
+    verificationPersistedRef.current = false;
   }, [open]);
 
   // Handle transaction sent
@@ -162,24 +164,48 @@ export function WalletDeployModal({
     }
   }, [sentTxHash, step, session?.sessionId, address]);
 
-  // Handle transaction confirmed + trigger auto-verification
   useEffect(() => {
-    if (isConfirmed && step === "submitted") {
-      setStep("confirmed");
-      setVerificationState("pending");
-      // Trigger auto-verification in the background
-      (async () => {
-        try {
-          const network = session?.network || session?.networkName || "avalanche-fuji";
-          await api.verifyByJob(jobId, network);
-          console.log("Auto-verification triggered for job:", jobId);
-        } catch (err) {
-          // Verification may fail silently - it's a best-effort operation
-          console.warn("Auto-verification failed:", err);
+    if (!isConfirmed) return;
+    if (step !== "submitted") return;
+    setStep("confirmed");
+    setVerificationState("pending");
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const network = session?.network || session?.networkName || "avalanche-fuji";
+        let foundAddr: string | null = null;
+        for (let i = 0; i < 24; i++) {
+          if (cancelled) return;
+          try {
+            const st = await api.jobStatus(jobId);
+            const d = (st as any)?.data;
+            const addr = d?.cache?.address || d?.result?.address || d?.result?.contractAddress;
+            if (typeof addr === "string" && addr) {
+              setContractAddress(addr);
+              foundAddr = addr;
+              break;
+            }
+          } catch {}
+          await new Promise((r) => setTimeout(r, 5000));
         }
-      })();
-    }
-  }, [isConfirmed, step, jobId, session?.network, session?.networkName]);
+
+        if (cancelled) return;
+        try {
+          await api.verifyByJob(jobId, network);
+        } catch (e: any) {
+          if (foundAddr) {
+            try { await api.verifyByAddress(foundAddr, network); } catch {}
+          }
+        }
+      } catch {
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isConfirmed, step, jobId, session?.network, session?.networkName, contractAddress]);
 
   useEffect(() => {
     if (!open) return;
@@ -194,6 +220,18 @@ export function WalletDeployModal({
         if (cancelled) return;
         if (res?.verified) {
           setVerificationState("verified");
+          if (!verificationPersistedRef.current) {
+            verificationPersistedRef.current = true;
+            try {
+              await api.updateJobCache({
+                jobId,
+                state: "completed",
+                verified: true,
+                address: contractAddress,
+                explorer_url: res?.explorerUrl,
+              });
+            } catch {}
+          }
         } else {
           setVerificationState("pending");
         }

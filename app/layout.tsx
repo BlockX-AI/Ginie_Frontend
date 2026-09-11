@@ -4,7 +4,7 @@ import { Inter, Space_Grotesk } from 'next/font/google';
 import { Toaster } from '@/components/ui/toaster';
 import HeroHeaderGate from '@/components/HeroHeaderGate';
 import { AuthProvider } from '@/components/auth/AuthProvider';
-import { WalletProvider } from '@/components/web3/WalletProvider';
+// import { WalletProvider } from '@/components/web3/WalletProvider';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3100';
@@ -89,9 +89,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${inter.variable} ${spaceGrotesk.variable} font-sans antialiased  text-foreground overflow-x-hidden`}>
-        <WalletProvider>
+    <html lang="en" className="dark" suppressHydrationWarning>
+      <body className={`${inter.variable} ${spaceGrotesk.variable} font-sans antialiased  text-foreground overflow-x-hidden`} suppressHydrationWarning>
           <AuthProvider>
             <HeroHeaderGate />
             <ErrorBoundary>
@@ -99,7 +98,6 @@ export default function RootLayout({
             </ErrorBoundary>
             <Toaster />
           </AuthProvider>
-        </WalletProvider>
       </body>
     </html>
   );

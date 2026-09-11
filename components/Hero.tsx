@@ -1,12 +1,19 @@
 "use client";
 
 import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { api } from '@/lib/api'
+import { ArrowUp, Loader2 } from 'lucide-react'
 import ReferenceSection from './ReferenceSection'
 
 const HERO_IMG = 'https://framerusercontent.com/images/9zvwRJAavKKacVyhFCwHyXW1U.png?width=1536&height=1024'
 
 export default function Hero() {
   const ref = useRef<HTMLElement | null>(null)
+  const [input, setInput] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
+  const router = useRouter()
 
   // sticky hero container
   const stickyRef = useRef<HTMLDivElement | null>(null)
@@ -55,6 +62,33 @@ export default function Hero() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const trimmed = input.trim()
+    if (!trimmed || isLoading) return
+
+    setIsLoading(true)
+    setError('')
+
+    try {
+      const result: any = await api.startPipeline({
+        prompt: trimmed,
+        model: 'gpt-4o',
+      })
+      const dappId = result?.chat_id || result?.job?.id || result?.id
+      if (dappId) {
+        setInput('')
+        router.push(`/chat/${encodeURIComponent(dappId)}?mode=dapp`)
+      } else {
+        throw new Error('Failed to start DApp creation')
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Request failed. Please try again.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <>
       <section ref={ref} className="relative min-h-screen bg-black p-0">
@@ -92,7 +126,44 @@ export default function Hero() {
                 <span className="block">From Idea to Verified </span>
                 <span className="block">Smart Contract in One Chat</span>
               </h1>
-              <p className="mt-3 font-body text-/55 text-base tracking-normal">Don’t code just chat the chain</p>
+              <p className="mt-3 font-body text-/55 text-base tracking-normal">Don't code just chat the chain</p>
+
+              {/* Chat input — DApp mode only */}
+              <div className="mt-8 w-full max-w-2xl pointer-events-auto">
+                <form onSubmit={handleSubmit}>
+                  <div className="bg-white/5 rounded-2xl p-4 backdrop-blur-sm transition-colors">
+                    <input
+                      type="text"
+                      placeholder="GM GM! What you wanna ship on chain"
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      disabled={isLoading}
+                      className="w-full bg-transparent text-white placeholder:text-white/40 focus:outline-none text-lg"
+                    />
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/5">
+                      <span className="text-xs text-white/40 px-2">Full DApp — Contract + Frontend</span>
+                      <button
+                        type="submit"
+                        disabled={isLoading || !input.trim()}
+                        className={`rounded-full w-10 h-10 flex items-center justify-center shadow-lg transform transition-all ${
+                          !input.trim()
+                            ? 'bg-white/6 text-white/30 cursor-not-allowed'
+                            : isLoading
+                            ? 'bg-white/5 text-white border border-white/30 ring-1 ring-white/20 backdrop-blur-sm opacity-90'
+                            : 'bg-white/5 text-white border border-white/20 ring-1 ring-white/20 backdrop-blur-sm hover:scale-105'
+                        }`}
+                      >
+                        {isLoading ? <Loader2 size={16} className="animate-spin" /> : <ArrowUp size={16} strokeWidth={2} />}
+                      </button>
+                    </div>
+                  </div>
+                </form>
+                {error && (
+                  <div className="mt-3 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+                    {error}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Wallet, Rocket, ChevronDown, Check, Loader2, Boxes, Layout } from "lucide-react";
+import { Wallet, Rocket, ChevronDown, Check, Loader2, Boxes } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -30,32 +30,11 @@ export function DeploymentModeSelector({
 }: DeploymentModeSelectorProps) {
   const modes = [
     {
-      id: "normal" as const,
-      label: "Smart Contract",
-      description: "Deploy smart contract via Ginie pipeline",
-      icon: Rocket,
-      available: true,
-    },
-    {
-      id: "frontend" as const,
-      label: "Frontend Only",
-      description: "Build & deploy React website (no blockchain)",
-      icon: Layout,
-      available: hasDappEntitlement,
-    },
-    {
       id: "dapp" as const,
       label: "Full DApp",
-      description: "Contract + React frontend (Pro)",
+      description: "Deploy smart contract + React frontend on BotChain",
       icon: Boxes,
-      available: hasDappEntitlement,
-    },
-    {
-      id: "wallet" as const,
-      label: "Wallet Deploy",
-      description: "Deploy using your own wallet (Pro)",
-      icon: Wallet,
-      available: hasWalletEntitlement,
+      available: true,
     },
   ];
 

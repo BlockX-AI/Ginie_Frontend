@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useAccount } from "wagmi";
+// import { useAccount } from "wagmi";
 import { api } from "@/lib/api";
 import { useAuth } from "@/components/auth/AuthProvider";
 import {
@@ -22,11 +22,12 @@ import {
 import { WalletDeployModal } from "@/components/chat/WalletDeployModal";
 import HeroHeader from "@/components/HeroHeader";
 
+// Updated for webbuilder-main integration
 export default function ChatPageContent() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [deploymentMode, setDeploymentMode] = useState<DeploymentMode>("normal");
+  const [deploymentMode, setDeploymentMode] = useState<DeploymentMode>("dapp");
   const [gameMode, setGameMode] = useState(false);
   const [walletDeployModalOpen, setWalletDeployModalOpen] = useState(false);
   const [walletDeployJobId, setWalletDeployJobId] = useState<string | null>(null);
@@ -34,7 +35,9 @@ export default function ChatPageContent() {
   const searchParams = useSearchParams();
   const initialPromptConsumedRef = useRef(false);
   const { entitlements, isPro } = useAuth();
-  const { address, isConnected } = useAccount();
+  // const { address, isConnected } = useAccount();
+  const address = null;
+  const isConnected = false;
 
   // Pro users have wallet deployment access (check both wallet_deployments and pro_enabled)
   const hasWalletEntitlement = entitlements?.wallet_deployments === true || entitlements?.pro_enabled === true || isPro;
@@ -141,14 +144,21 @@ export default function ChatPageContent() {
           });
           try {
             const started = await api.startPipeline(makePayload("avalanche-fuji"));
-            const jid = (started as any)?.job?.id;
-            if (!jid) throw new Error("Failed to start job");
+            console.log("Pipeline started response:", started);
+            const jid = (started as any)?.chat_id || (started as any)?.job?.id;
+            console.log("Extracted job ID:", jid);
+            if (!jid) {
+              console.error("No job ID in response:", started);
+              throw new Error("Failed to start job - no chat_id in response");
+            }
             router.push(`/chat/${encodeURIComponent(jid)}`);
             return;
           } catch (e1: any) {
+            console.error("Pipeline start error:", e1);
+
             if (e1?.status === 400) {
               const started2 = await api.startPipeline(makePayload("avalanche-fuji"));
-              const jid2 = (started2 as any)?.job?.id;
+              const jid2 = (started2 as any)?.chat_id || (started2 as any)?.job?.id;
               if (!jid2) throw new Error("Failed to start job");
               router.push(`/chat/${encodeURIComponent(jid2)}`);
               return;

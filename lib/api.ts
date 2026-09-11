@@ -1,5 +1,19 @@
 // Use local proxy to avoid cross-origin cookie issues
-const API_BASE = typeof window !== "undefined" ? "/api/proxy" : ((process.env.NEXT_PUBLIC_API_BASE_URL as string) || "https://evi-user-apis-production.up.railway.app");
+const DEFAULT_API_BASE = "https://evi-user-apis-production.up.railway.app";
+const API_BASE = typeof window !== "undefined"
+  ? "/api/proxy"
+  : String((process.env.NEXT_PUBLIC_API_BASE_URL as string) || DEFAULT_API_BASE).replace(/\/+$/, "");
+
+// Webbuilder backend (for demo mode — direct calls, no auth needed)
+const WEBBUILDER_BASE = String(process.env.NEXT_PUBLIC_WEBBUILDER_API_URL || "https://web-production-7fc87.up.railway.app").replace(/\/+$/, "");
+
+function buildApiUrl(path: string) {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  if (API_BASE.startsWith("http://") || API_BASE.startsWith("https://")) {
+    return new URL(normalizedPath, `${API_BASE}/`).toString();
+  }
+  return `${API_BASE}${normalizedPath}`;
+}
 
 import { apiCache, cacheKeys, cacheTTL } from './cache';
 
@@ -21,6 +35,11 @@ function dispatchSessionExpired() {
 
 // Perform refresh with lock - returns true if refresh succeeded
 async function doRefreshWithLock(signal?: AbortSignal): Promise<boolean> {
+  // Demo mode: the webbuilder backend has no cookie-based /auth/refresh flow.
+  // Short-circuit to avoid spamming /auth/refresh (422) on every 401 response.
+  return false;
+
+  // eslint-disable-next-line no-unreachable
   // If a refresh is already in progress, wait for it
   if (refreshPromise) {
     console.log('[API] Refresh already in progress, waiting...');
@@ -37,7 +56,7 @@ async function doRefreshWithLock(signal?: AbortSignal): Promise<boolean> {
   // Create a new refresh promise
   refreshPromise = (async () => {
     try {
-      const url = `${API_BASE}/u/auth/refresh`;
+      const url = buildApiUrl("/auth/refresh");
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -88,16 +107,17 @@ async function request<T = any>(
 ): Promise<T> {
   if (opts.signal?.aborted) throw makeAbortError();
   const method = opts.method || (opts.body ? "POST" : "GET");
-  const url = `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+  const url = buildApiUrl(path);
   const headers: Record<string, string> = { "Content-Type": opts.contentType || "application/json", Accept: opts.accept || "application/json" };
   if (method !== "GET" && opts.csrf !== false) {
     let csrf = getCsrf();
-    if (!csrf && !opts.retry) {
-      try {
-        await request("/u/auth/refresh", { method: "POST", csrf: false, retry: true, signal: opts.signal });
-      } catch {}
-      csrf = getCsrf();
-    }
+    // Skip CSRF for demo mode - webbuilder backend doesn't use CSRF tokens
+    // if (!csrf && !opts.retry) {
+    //   try {
+    //     await request("/auth/refresh", { method: "POST", csrf: false, retry: true, signal: opts.signal });
+    //   } catch {}
+    //   csrf = getCsrf();
+    // }
     if (csrf) headers["x-csrf-token"] = csrf;
   }
   try {
@@ -124,17 +144,10 @@ async function request<T = any>(
     console.log(JSON.stringify({ level: "debug", msg: "api.response", method, path, status: res.status }));
   } catch {}
 
-  if (res.status === 401 && !opts.retry && path !== "/u/auth/refresh") {
-    // Use the locked refresh to prevent race conditions
-    const refreshed = await doRefreshWithLock(opts.signal);
-    if (refreshed) {
-      // Retry the original request
-      return request<T>(path, { ...opts, retry: true, signal: opts.signal });
-    } else {
-      // Refresh failed - session is truly expired
-      console.log('[API] Session refresh failed, dispatching session expired event');
-      dispatchSessionExpired();
-    }
+  if (res.status === 401 && !opts.retry && path !== "/auth/refresh") {
+    // Demo mode: do not attempt token refresh (webbuilder backend has no such flow).
+    // Just log and continue so the caller can handle the 401 gracefully.
+    console.log('[API] 401 received, continuing without auth (demo mode)');
   }
 
   const text = await res.text();
@@ -153,13 +166,13 @@ async function request<T = any>(
       // eslint-disable-next-line no-console
       console.warn(JSON.stringify({ level: "warn", msg: "api.error", method, path, status: res.status, code: err.code, message: msg?.toString?.().slice?.(0, 200) }));
     } catch {}
-    // Retry once on 400 in case CSRF needs refresh
-    if (res.status === 400 && !opts.retry) {
-      try {
-        await request("/u/auth/refresh", { method: "POST", csrf: false, retry: true, signal: opts.signal });
-        return request<T>(path, { ...opts, retry: true, signal: opts.signal });
-      } catch {}
-    }
+    // Skip CSRF refresh for demo mode
+    // if (res.status === 400 && !opts.retry) {
+    //   try {
+    //     await request("/auth/refresh", { method: "POST", csrf: false, retry: true, signal: opts.signal });
+    //     return request<T>(path, { ...opts, retry: true, signal: opts.signal });
+    //   } catch {}
+    // }
     throw err;
   }
   if (res.status === 304) {
@@ -173,7 +186,7 @@ async function requestBinary(
   opts: { method?: string; accept?: string; signal?: AbortSignal } = {},
 ): Promise<ArrayBuffer> {
   const method = opts.method || "GET";
-  const url = `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+  const url = buildApiUrl(path);
   const headers: Record<string, string> = { Accept: opts.accept || "application/octet-stream" };
   if (opts.signal?.aborted) throw makeAbortError();
   const res = await fetch(url, {
@@ -183,7 +196,7 @@ async function requestBinary(
     cache: "no-store",
     signal: opts.signal,
   });
-  if (res.status === 401 && path !== "/u/auth/refresh") {
+  if (res.status === 401 && path !== "/auth/refresh") {
     const refreshed = await doRefreshWithLock(opts.signal);
     if (refreshed) return requestBinary(path, { ...opts });
     dispatchSessionExpired();
@@ -200,30 +213,28 @@ async function requestBinary(
 export const api = {
   // mode: 'auto' | 'signin' | 'signup'
   sendOtp: (identity: string, name: string, mode?: 'auto' | 'signin' | 'signup', captchaToken?: string) =>
-    request<{ ok: true; challengeId?: string; expiresAt?: number }>("/u/auth/send-otp", {
-      method: "POST",
-      body: { identity, name, ...(mode ? { mode } : {}), ...(captchaToken ? { captchaToken } : {}) },
-      csrf: false,
-    }),
+    Promise.resolve({ ok: true as const, challengeId: 'demo', expiresAt: Date.now() + 300000 }),
+    // request<{ ok: true; challengeId?: string; expiresAt?: number }>("/u/auth/send-otp", {
+    //   method: "POST",
+    //   body: { identity, name, ...(mode ? { mode } : {}), ...(captchaToken ? { captchaToken } : {}) },
+    //   csrf: false,
+    // }),
   verifyOtp: (
     identity: string,
     otp: string,
     challengeId?: string,
     opts?: { mode?: 'auto' | 'signin' | 'signup'; name?: string }
   ) =>
-    request<{ ok: true; user: any; entitlements: any }>("/u/auth/verify", {
-      method: "POST",
-      body: { identity, otp, ...(challengeId ? { challengeId } : {}), ...(opts?.mode ? { mode: opts.mode } : {}), ...(opts?.name ? { name: opts.name } : {}) },
-      csrf: false,
-    }),
-  refresh: (extra?: RequestExtras) => request<{ ok: true }>("/u/auth/refresh", { method: "POST", csrf: false, signal: extra?.signal }),
-  me: (extra?: RequestExtras) => request<{ ok: true; user: any; entitlements: any }>("/u/user/me", { signal: extra?.signal }),
+    Promise.resolve({ ok: true as const, user: null, entitlements: null }),
+    // request<{ ok: true; user: any; entitlements: any }>("/u/auth/verify", {
+    //   method: "POST",
+    //   body: { identity, otp, ...(challengeId ? { challengeId } : {}), ...(opts?.mode ? { mode: opts.mode } : {}), ...(opts?.name ? { name: opts.name } : {}) },
+    //   csrf: false,
+    // }),
+  refresh: (extra?: RequestExtras) => Promise.resolve({ ok: true as const }),  // Stubbed for demo mode
+  me: (extra?: RequestExtras) => Promise.resolve({ ok: true as const, user: null, entitlements: null }),
   meCached: (extra?: RequestExtras & { forceRefresh?: boolean }) =>
-    apiCache.get(
-      cacheKeys.user(),
-      () => request<{ ok: true; user: any; entitlements: any }>("/u/user/me", { signal: extra?.signal }),
-      { ttl: cacheTTL.medium, forceRefresh: extra?.forceRefresh }
-    ),
+    Promise.resolve({ ok: true as const, user: null, entitlements: null }),
   updateProfile: async (payload: {
     display_name: string;
     wallet_address?: string | null;
@@ -242,22 +253,11 @@ export const api = {
       social?: { github?: string; linkedin?: string; twitter?: string; telegram?: string };
     };
   }) => {
-    const res = await request<{ ok: true; user: any; entitlements: any }>("/u/user/profile", {
-      method: "POST",
-      body: payload,
-    });
-    apiCache.invalidate(cacheKeys.user());
-    return res;
+    return Promise.resolve({ ok: true as const, user: null, entitlements: null });
   },
-  logout: (extra?: RequestExtras) => request<{ ok: true }>("/u/auth/logout", { method: "POST", signal: extra?.signal }),
+  logout: (extra?: RequestExtras) => Promise.resolve({ ok: true as const }),
   redeemKey: async (key: string) => {
-    const res = await request<{ ok: true; user: any; entitlements: any }>("/u/keys/redeem", {
-      method: "POST",
-      body: { key },
-    });
-    try { await request("/u/auth/refresh", { method: "POST", csrf: false }); } catch {}
-    apiCache.invalidate(cacheKeys.user());
-    return res;
+    return Promise.resolve({ ok: true as const, user: null, entitlements: null });
   },
   auditByJobMd: (jobId: string, extra?: RequestExtras) =>
     request<string>("/u/proxy/audit/byJob?format=md", {
@@ -299,17 +299,40 @@ export const api = {
     return res;
   },
   startPipeline: (payload: StartPipelinePayload) =>
-    request<{ job: { id: string } }>("/u/proxy/ai/pipeline", { method: "POST", body: payload }),
+    request<{ status: string; chat_id: string; message: string }>("/demo/chat", { method: "POST", body: { prompt: payload.prompt, model: payload.model || "gpt-4o" } }),
+  // Demo mode: fetch project metadata (contracts, files, vercel URL) from webbuilder backend directly
+  demoProjectMeta: async (projectId: string, extra?: RequestExtras) => {
+    const url = `${WEBBUILDER_BASE}/demo/projects/${encodeURIComponent(projectId)}/meta`;
+    const res = await fetch(url, { signal: extra?.signal, headers: { Accept: "application/json" } });
+    if (!res.ok) throw new Error(`Meta fetch failed (${res.status})`);
+    return res.json();
+  },
+  demoProjectFiles: async (projectId: string, extra?: RequestExtras) => {
+    const url = `${WEBBUILDER_BASE}/projects/${encodeURIComponent(projectId)}/files`;
+    const res = await fetch(url, { signal: extra?.signal, headers: { Accept: "application/json" } });
+    if (!res.ok) throw new Error(`Files fetch failed (${res.status})`);
+    return res.json();
+  },
+  demoProjectFile: async (projectId: string, filePath: string, extra?: RequestExtras) => {
+    const url = `${WEBBUILDER_BASE}/projects/${encodeURIComponent(projectId)}/files/${encodeURIComponent(filePath)}`;
+    const res = await fetch(url, { signal: extra?.signal, headers: { Accept: "application/json" } });
+    if (!res.ok) throw new Error(`File fetch failed (${res.status})`);
+    return res.json();
+  },
+  demoProjectZip: async (projectId: string, extra?: RequestExtras) => {
+    const url = `${WEBBUILDER_BASE}/projects/${encodeURIComponent(projectId)}/download`;
+    const res = await fetch(url, { signal: extra?.signal, headers: { Accept: "application/zip" } });
+    if (!res.ok) throw new Error(`ZIP fetch failed (${res.status})`);
+    return res.arrayBuffer();
+  },
   jobStatus: (jobId: string, includeMagical = true) =>
-    request<{ ok: boolean; data: JobStatus }>(
-      `/u/proxy/job/${encodeURIComponent(jobId)}/status${includeMagical ? "?includeMagical=1" : ""}`
-    ),
-  job: (jobId: string, extra?: RequestExtras) => request<JobDetails>(`/u/proxy/job/${encodeURIComponent(jobId)}`, { signal: extra?.signal }),
+    Promise.resolve({ build_status: "building", build_started_at: "", last_build_event: "", task_running: true }),  // Stubbed for demo mode (updates come via /ws/status)
+  job: (jobId: string, extra?: RequestExtras) => request<{ chat: any; messages: any[] }>(`/chats/${encodeURIComponent(jobId)}/messages`, { signal: extra?.signal }),
   // Cached version of job details (use for repeated polling)
   jobCached: (jobId: string, extra?: RequestExtras & { forceRefresh?: boolean }) =>
     apiCache.get(
       cacheKeys.job(jobId),
-      () => request<JobDetails>(`/u/proxy/job/${encodeURIComponent(jobId)}`, { signal: extra?.signal }),
+      () => request<{ chat: any; messages: any[] }>(`/chats/${encodeURIComponent(jobId)}/messages`, { signal: extra?.signal }),
       { ttl: cacheTTL.short, forceRefresh: extra?.forceRefresh }
     ),
   // List user jobs (paginated)
@@ -387,9 +410,7 @@ export const api = {
   exportUserJob: (jobId: string, extra?: RequestExtras) =>
     request<string>(`/u/jobs/${encodeURIComponent(jobId)}/export`, { method: "GET", responseType: "text", accept: "application/json", signal: extra?.signal }),
   jobLogs: (jobId: string, afterIndex = 0, includeMagical = true) =>
-    request<{ ok: boolean; data: { id: string; total: number; count: number; logs: JobLog[] } }>(
-      `/u/proxy/job/${encodeURIComponent(jobId)}/logs?afterIndex=${afterIndex}${includeMagical ? "&includeMagical=1" : ""}`
-    ),
+    Promise.resolve({ ok: true, data: { id: jobId, total: 0, count: 0, logs: [] as JobLog[] } }),  // Stubbed for demo mode (logs come via /ws/status)
   artifacts: (jobId: string, extra?: RequestExtras) =>
     request<ArtifactsCombined>(`/u/proxy/artifacts?jobId=${encodeURIComponent(jobId)}`, { signal: extra?.signal }),
   // Cached version of artifacts (prevents duplicate calls)
@@ -431,20 +452,11 @@ export const api = {
     request<WalletNetworksResponse>("/u/proxy/wallet/networks", { signal: extra?.signal }),
   // Contract Verification APIs
   verifyByAddress: (address: string, network?: string, fullyQualifiedName?: string) =>
-    request<any>("/u/proxy/verify/byAddress", {
-      method: "POST",
-      body: { address, network: network || "avalanche-fuji", ...(fullyQualifiedName ? { fullyQualifiedName } : {}) },
-    }),
+    Promise.resolve({ ok: true }),  // Stubbed for demo mode
   verifyByJob: (jobId: string, network?: string, fullyQualifiedName?: string) =>
-    request<any>("/u/proxy/verify/byJob", {
-      method: "POST",
-      body: { jobId, network: network || "avalanche-fuji", ...(fullyQualifiedName ? { fullyQualifiedName } : {}) },
-    }),
+    Promise.resolve({ ok: true }),  // Stubbed for demo mode
   verifyStatus: (address: string, network?: string, extra?: RequestExtras) =>
-    request<{ ok: boolean; verified: boolean; explorerUrl?: string }>(
-      `/u/proxy/verify/status?address=${encodeURIComponent(address)}&network=${encodeURIComponent(network || "avalanche-fuji")}`,
-      { signal: extra?.signal }
-    ),
+    Promise.resolve({ ok: true, verified: false }),  // Stubbed for demo mode
 
   // Frontend Builder (hosted_frontend entitlement)
   builderCreateProject: (payload: { prompt: string; model?: string }, extra?: RequestExtras) =>
@@ -472,9 +484,9 @@ export const api = {
       signal: extra?.signal,
     }),
   builderGetStatus: (id: string, extra?: RequestExtras) =>
-    request<{ ok: true; project: BuilderProject; status: any }>(`/u/proxy/builder/projects/${encodeURIComponent(id)}/status`, { signal: extra?.signal }),
+    Promise.resolve({ ok: true as const, project: {} as BuilderProject, status: { build_status: "completed" } }),  // Stubbed for demo mode
   builderListFiles: (id: string, extra?: RequestExtras) =>
-    request<any>(`/u/proxy/builder/projects/${encodeURIComponent(id)}/files`, { signal: extra?.signal }),
+    Promise.resolve({ ok: true, files: [] }),  // Stubbed for demo mode
   builderGetFile: (id: string, path: string, extra?: RequestExtras) => {
     const qs = new URLSearchParams();
     qs.set('path', path);
@@ -486,6 +498,13 @@ export const api = {
     request<any>(`/u/proxy/builder/projects/${encodeURIComponent(id)}/export/github`, {
       method: 'POST',
       body: payload || {},
+      signal: extra?.signal,
+    }),
+
+  // Ensure preview server is running and return embeddable preview_url
+  builderStartPreview: (id: string, extra?: RequestExtras) =>
+    request<{ ok: boolean; preview_url?: string }>(`/u/proxy/builder/projects/${encodeURIComponent(id)}/preview/start`, {
+      method: 'POST',
       signal: extra?.signal,
     }),
 
@@ -517,6 +536,7 @@ export type { Json };
 
 export type StartPipelinePayload = {
   prompt: string;
+  model?: string;
   network?: string;
   maxIters?: number;
   filename?: string;

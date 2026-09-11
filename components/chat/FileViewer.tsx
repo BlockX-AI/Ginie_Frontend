@@ -208,7 +208,7 @@ export function FileViewer({ files, projectId, localFileContent }: FileViewerPro
     }
     setIsLoadingFile(true);
     try {
-      const res = await api.builderGetFile(projectId, filePath);
+      const res = await api.demoProjectFile(projectId, filePath);
       const content = (res as any)?.content;
       setFileContent(typeof content === "string" ? content : "");
     } catch (e: any) {
@@ -244,7 +244,7 @@ export function FileViewer({ files, projectId, localFileContent }: FileViewerPro
   const handleDownloadAll = async () => {
     setIsDownloading(true);
     try {
-      const ab = await api.builderDownloadZip(projectId);
+      const ab = await api.demoProjectZip(projectId);
       const blob = new Blob([ab], { type: "application/zip" });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");

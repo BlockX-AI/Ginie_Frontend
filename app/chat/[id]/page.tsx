@@ -13,6 +13,7 @@ import {
 import { api } from "@/lib/api";
 import type { ArtifactSource, ArtifactAbi, ArtifactScript } from "@/lib/api";
 import { consolidateMessages, getAllToolCalls } from "@/lib/chat-utils";
+import { handleWebSocketMessage } from "@/lib/websocket-handlers";
 import type { Message, ActiveToolCall } from "@/lib/chat-types";
 import { useAuth } from "@/components/auth/AuthProvider";
 
@@ -21,7 +22,7 @@ export default function ChatIdPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const chatId = params.id as string;
-  const BACKEND_DISABLED = true;
+  const BACKEND_DISABLED = process.env.NEXT_PUBLIC_BACKEND_DISABLED === '1';
   const mode = (searchParams?.get('mode') || '').toLowerCase();
   const isDappMode = mode === 'dapp';
   const isFrontendMode = mode === 'frontend';
@@ -33,6 +34,7 @@ export default function ChatIdPage() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [appUrl, setAppUrl] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isBuilding, setIsBuilding] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const { user: userData } = useAuth();
@@ -69,6 +71,12 @@ export default function ChatIdPage() {
   const [localFileContent, setLocalFileContent] = useState<Record<string, string>>({});
 
   const wsRef = useRef<WebSocket | null>(null);
+  const wsReconnectAttemptRef = useRef(0);
+  const wsPingRef = useRef<NodeJS.Timeout | null>(null);
+  const wsFinishedRef = useRef(false);
+  const wsIntentionalCloseRef = useRef(false);
+  const wsReconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const wsLastFileFetchRef = useRef<number>(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const urlCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -83,8 +91,76 @@ export default function ChatIdPage() {
   const seenMsgRef = useRef<Set<string>>(new Set());
   const msgQueueRef = useRef<string[]>([]);
   const artifactsLoadedRef = useRef<boolean>(false);
-  const API_BASE = typeof window !== "undefined" ? "/api/proxy" : ((process.env.NEXT_PUBLIC_API_BASE_URL as string) || "https://evi-user-apis-production.up.railway.app");
+  const artifactsInFlightRef = useRef<boolean>(false);
+  const lastArtifactAttemptRef = useRef<number>(0);
+  const verifyRequestedRef = useRef<boolean>(false);
+  const logsPollInFlightRef = useRef<boolean>(false);
+  const lastPollErrorRef = useRef<string>("");
+  const autoPreviewShownRef = useRef<boolean>(false);
+  const API_BASE = typeof window !== "undefined"
+    ? "/api/proxy"
+    : String((process.env.NEXT_PUBLIC_API_BASE_URL as string) || "https://usermanagementapis-production.up.railway.app").replace(/\/+$/, "");
   const [currentStage, setCurrentStage] = useState<string>("");
+  const [processStatus, setProcessStatus] = useState<string>("");
+
+  const buildApiUrl = (path: string) => {
+    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+    if (API_BASE.startsWith("http://") || API_BASE.startsWith("https://")) {
+      return new URL(normalizedPath, `${API_BASE}/`).toString();
+    }
+    return `${API_BASE}${normalizedPath}`;
+  };
+
+  const statusMeta: Record<string, { label: string; progress: number }> = {
+    generate: { label: "Generating smart contract…", progress: 10 },
+    compile: { label: "Compiling…", progress: 60 },
+    deploy: { label: "Preparing deployment…", progress: 90 },
+    await_signature: { label: "Ready for signing", progress: 80 },
+    verify: { label: "Verifying…", progress: 95 },
+    deployed: { label: "Deployed", progress: 100 },
+    completed: { label: "Done", progress: 100 },
+  };
+
+  const setUnifiedStatus = (key: string) => {
+    if (!key) return;
+    setProcessStatus(key);
+    setCurrentStage(key);
+    const meta = statusMeta[key];
+    if (meta) setProgress((prev) => (prev == null ? meta.progress : Math.max(prev, meta.progress)));
+  };
+
+  const shouldAttemptArtifacts = (stage: string) => {
+    const s = String(stage || "").toLowerCase();
+    return s === "compile" || s === "deploy" || s === "await_signature" || s === "verify" || s === "deployed" || s === "completed";
+  };
+
+  const maybeLoadArtifacts = async (jid: string, stage: string, extra?: { signal?: AbortSignal }) => {
+    const signal = extra?.signal;
+    if (signal?.aborted) return;
+    if (!shouldAttemptArtifacts(stage)) return;
+    if (artifactsLoadedRef.current) return;
+    const now = Date.now();
+    if (now - lastArtifactAttemptRef.current < 8000) return;
+    lastArtifactAttemptRef.current = now;
+    try {
+      appendLine("[info] Loading artifacts...");
+      await loadArtifacts(jid, { signal });
+    } catch {}
+  };
+
+  const isLocalPreviewUrl = (url: string | null) => {
+    if (!url) return false;
+    return url.includes('localhost') || url.includes('127.0.0.1');
+  };
+
+  const applyPreviewUrl = (url: string | null | undefined) => {
+    if (!url || typeof url !== "string") return;
+    setPreviewUrl(url);
+    setAppUrl(url);
+    if (!isLocalPreviewUrl(url)) {
+      setIsCheckingUrl(false);
+    }
+  };
 
   // restore pane widths
   useEffect(() => {
@@ -104,6 +180,21 @@ export default function ChatIdPage() {
   }, [colW]);
 
   // Auth is handled by middleware + AuthProvider; no client-side auth gate here
+
+  useEffect(() => {
+    autoPreviewShownRef.current = false;
+  }, [chatId]);
+
+  const appendLine = (line: string) => setLogs((prev) => [...prev, line]);
+
+  useEffect(() => {
+    if (!previewUrl) return;
+    if (showPreview) return;
+    if (autoPreviewShownRef.current) return;
+    if (isLocalPreviewUrl(previewUrl)) return;
+    autoPreviewShownRef.current = true;
+    setShowPreview(true);
+  }, [previewUrl, showPreview]);
 
   // Abort in-flight requests quickly on navigation/reload (reduces noisy WebKit console errors)
   useEffect(() => {
@@ -125,16 +216,21 @@ export default function ChatIdPage() {
 
   // Function to fetch project files
   const fetchProjectFiles = async () => {
-    if (!isBuilderMode) {
-      setProjectFiles([]);
-      return;
-    }
     try {
-      const res = await api.builderListFiles(chatId);
+      const pageSignal = pageAbortRef.current?.signal;
+      const res = await api.demoProjectFiles(chatId, { signal: pageSignal });
       const files = (res as any)?.files;
-      setProjectFiles(Array.isArray(files) ? files : []);
+      if (Array.isArray(files) && files.length > 0) {
+        setProjectFiles(files);
+      }
     } catch {
-      setProjectFiles([]);
+      // Fallback: try meta endpoint which also includes files
+      try {
+        const pageSignal = pageAbortRef.current?.signal;
+        const meta = await api.demoProjectMeta(chatId, { signal: pageSignal });
+        const files = (meta as any)?.files;
+        if (Array.isArray(files)) setProjectFiles(files);
+      } catch {}
     }
   };
 
@@ -156,10 +252,11 @@ export default function ChatIdPage() {
   async function loadDappInfo(pid: string) {
     const pageSignal = pageAbortRef.current?.signal;
     try {
-      // Load contracts info
-      const contractRes = await api.builderGetContracts(pid, { signal: pageSignal });
-      const contracts = (contractRes as any)?.contracts || [];
-      const cached = (contractRes as any)?.cached_contract;
+      const meta = await api.demoProjectMeta(pid, { signal: pageSignal });
+      const chat = (meta as any)?.chat;
+      const contracts = (meta as any)?.contracts || [];
+
+      // Extract contract info
       if (contracts.length > 0) {
         const c = contracts[0];
         if (c.address) { setContractAddress(c.address); setContractName(c.name || null); }
@@ -189,31 +286,19 @@ export default function ChatIdPage() {
             return merged;
           });
         }
-      } else if (cached?.address) {
-        setContractAddress(cached.address);
-        if (cached.name) setContractName(cached.name);
-        if (cached.explorer_url) setContractExplorerUrl(cached.explorer_url);
-        if (cached.verified) setContractVerified(true);
       }
-    } catch {}
-    try {
-      // Load project detail for Vercel URL and other metadata
-      const detailRes = await api.builderGetProject(pid, { includeMessages: false }, { signal: pageSignal });
-      const proj = (detailRes as any)?.project;
-      if (proj?.vercel_url) {
-        setVercelUrl(proj.vercel_url);
-        setAppUrl(proj.vercel_url);
-        // If project has a deployed URL, mark as completed
+
+      // Extract chat metadata
+      if (chat?.vercel_url) {
+        setVercelUrl(chat.vercel_url);
         setCurrentStage("completed");
         setProgress(100);
         setState("completed");
         setIsBuilding(false);
       }
-      if (proj?.contract_address && !contractAddress) setContractAddress(proj.contract_address);
-      if (proj?.contract_explorer_url) setContractExplorerUrl(proj.contract_explorer_url);
-      if (proj?.contract_verified) setContractVerified(true);
-      if (proj?.contract_name) setContractName(proj.contract_name);
-      if (proj?.contract_network) setContractNetwork(proj.contract_network);
+      if (chat?.app_url && !previewUrl) {
+        applyPreviewUrl(chat.app_url);
+      }
     } catch {}
   }
 
@@ -251,7 +336,7 @@ export default function ChatIdPage() {
         setProgress((prev) => (prev == null ? 5 : prev));
       }
 
-      const url = `${API_BASE}/u/proxy/builder/projects/${encodeURIComponent(pid)}/events/stream`;
+      const url = buildApiUrl(`/u/proxy/builder/projects/${encodeURIComponent(pid)}/events/stream`);
       const res = await fetch(url, {
         credentials: 'include',
         signal: ac.signal,
@@ -324,8 +409,16 @@ export default function ChatIdPage() {
               if (ev === 'heartbeat') continue;
               if (ev === 'history') {
                 // Silent — just extract any existing app_url/vercel_url
-                if (j.app_url) setAppUrl(j.app_url);
-                if (j.vercel_url) { setVercelUrl(j.vercel_url); setAppUrl(j.vercel_url); }
+                if (typeof j.preview_url === 'string' && j.preview_url) {
+                  applyPreviewUrl(j.preview_url);
+                }
+                if (typeof j.app_url === 'string' && j.app_url) {
+                  const shouldUseAsPreview = j.app_url.includes('localhost') || j.app_url.includes('127.0.0.1');
+                  if (shouldUseAsPreview) {
+                    applyPreviewUrl(j.app_url);
+                  }
+                }
+                if (j.vercel_url) { setVercelUrl(j.vercel_url); }
                 continue;
               }
 
@@ -335,9 +428,33 @@ export default function ChatIdPage() {
                 if (isDappMode) { setCurrentStage("generate"); setProgress(10); }
                 else if (isFrontendMode) { setCurrentStage("building"); setProgress(10); }
               }
+              if (ev === 'server_started') {
+                const pUrl = j.preview_url || j.app_url || j.url;
+                if (typeof pUrl === 'string' && pUrl) {
+                  if (isLocalPreviewUrl(pUrl)) {
+                    void pollUrlUntilReady(pUrl);
+                  } else {
+                    applyPreviewUrl(pUrl);
+                  }
+                }
+              }
               if (ev === 'workflow_completed' || ev === 'completed') {
                 setIsBuilding(false);
-                if (isDappMode || isFrontendMode) { setCurrentStage("completed"); setProgress(100); setState("completed"); }
+                setCurrentStage("completed"); setProgress(100); setState("completed");
+                // Extract contract & deployment info from the completed event
+                if (j.contract_address) {
+                  setContractAddress(j.contract_address);
+                  if (j.contract_name) setContractName(j.contract_name);
+                  if (j.network) setContractNetwork(j.network);
+                  if (j.explorer_url) setContractExplorerUrl(j.explorer_url);
+                }
+                if (j.vercel_url) setVercelUrl(j.vercel_url);
+                if (j.frontend_url) applyPreviewUrl(j.frontend_url);
+                if (j.url) applyPreviewUrl(j.url);
+                if (j.contract_verified) setContractVerified(true);
+                // Fetch files & contract info from backend
+                void loadDappInfo(pid);
+                void fetchProjectFiles();
               }
               if (ev === 'file_created' || ev === 'snapshot_saved' || ev === 'files_updated') scheduleFileRefresh();
 
@@ -442,7 +559,7 @@ export default function ChatIdPage() {
                 if (ev === 'deployment_complete' || ev === 'vercel_deployed') {
                   setProgress(95);
                   const vUrl = j.vercel_url || j.url || j.deploy_url;
-                  if (vUrl) { setVercelUrl(vUrl); setAppUrl(vUrl); }
+                  if (vUrl) { setVercelUrl(vUrl); }
                   scheduleFileRefresh();
                 }
                 if (ev === 'failed') {
@@ -475,7 +592,7 @@ export default function ChatIdPage() {
                 if (ev === 'deployment_success' || ev === 'deployment_complete' || ev === 'vercel_deployed') {
                   setCurrentStage("completed"); setProgress(100);
                   const vUrl = j.vercel_url || j.url || j.deploy_url;
-                  if (vUrl) { setVercelUrl(vUrl); setAppUrl(vUrl); }
+                  if (vUrl) { setVercelUrl(vUrl); }
                   scheduleFileRefresh();
                   setState("completed");
                 }
@@ -485,10 +602,32 @@ export default function ChatIdPage() {
               }
 
               // Preview URLs (works for both builder and dapp modes)
-              if (typeof j.preview_url === 'string' && j.preview_url) setAppUrl(j.preview_url);
-              if (typeof j.vercel_url === 'string' && j.vercel_url) { setVercelUrl(j.vercel_url); setAppUrl(j.vercel_url); }
-              if (typeof j.url === 'string' && j.url && ev !== 'pipeline_progress') setAppUrl(j.url);
-              if (typeof j.app_url === 'string' && j.app_url) setAppUrl(j.app_url);
+              if (typeof j.preview_url === 'string' && j.preview_url) {
+                applyPreviewUrl(j.preview_url);
+              }
+              if (typeof j.vercel_url === 'string' && j.vercel_url) {
+                setVercelUrl(j.vercel_url);
+              }
+              if (typeof j.url === 'string' && j.url && ev !== 'pipeline_progress') {
+                const shouldUseAsPreview = ev === 'server_started' || j.url.includes('localhost') || j.url.includes('127.0.0.1');
+                if (shouldUseAsPreview) {
+                  if (isLocalPreviewUrl(j.url)) {
+                    void pollUrlUntilReady(j.url);
+                  } else {
+                    applyPreviewUrl(j.url);
+                  }
+                }
+              }
+              if (typeof j.app_url === 'string' && j.app_url) {
+                const shouldUseAsPreview = ev === 'server_started' || j.app_url.includes('localhost') || j.app_url.includes('127.0.0.1');
+                if (shouldUseAsPreview) {
+                  if (isLocalPreviewUrl(j.app_url)) {
+                    void pollUrlUntilReady(j.app_url);
+                  } else {
+                    applyPreviewUrl(j.app_url);
+                  }
+                }
+              }
 
               // Log the event (for non-pipeline-progress which handled above)
               if (ev || msg) {
@@ -591,6 +730,7 @@ export default function ChatIdPage() {
       if (isReady || attempts >= maxAttempts) {
         clearInterval(checkInterval);
         setIsCheckingUrl(false);
+        setPreviewUrl(url);
         setAppUrl(url);
       }
     }, 1000);
@@ -633,15 +773,25 @@ export default function ChatIdPage() {
     lastIndexRef.current = 0;
     seenIdxRef.current.clear();
     artifactsLoadedRef.current = false; // Reset on new job
+    verifyRequestedRef.current = false;
     seenMagicRef.current.clear();
     magicQueueRef.current = [];
     seenMsgRef.current.clear();
     msgQueueRef.current = [];
     lastMagicRef.current = "";
     helloShownRef.current = false;
+    wsFinishedRef.current = false;
+    wsIntentionalCloseRef.current = false;
+    wsReconnectAttemptRef.current = 0;
     setCurrentStage("");
     (async () => {
       if (isBuilderMode) {
+        // Lovable-style: ensure preview dev server is running (best-effort)
+        try {
+          const r = await api.builderStartPreview(chatId, { signal: pageAbortRef.current?.signal });
+          const p = (r as any)?.preview_url;
+          if (typeof p === 'string' && p) applyPreviewUrl(p);
+        } catch {}
         await streamBuilderEvents(chatId);
       } else {
         await streamLogs(chatId);
@@ -650,6 +800,162 @@ export default function ChatIdPage() {
     return () => {
       pageAbortRef.current?.abort();
       streamAbortRef.current?.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatId, isBuilderMode]);
+
+  // Fallback: wallet deploy jobs sometimes don't emit an `end` SSE event promptly.
+  // Poll status until we have an address / completion and then trigger:
+  // - artifacts loading
+  // - verification (best-effort)
+  useEffect(() => {
+    if (!chatId) return;
+    if (isBuilderMode) return;
+    const pageSignal = pageAbortRef.current?.signal;
+    let cancelled = false;
+
+    const stageFromText = (msg: string): string | null => {
+      const m = msg.match(/Stage:\s*([a-zA-Z_]+)(?:\s*->\s*([^\n]+))?/);
+      if (m) return m[1].toLowerCase();
+
+      const s = msg.toLowerCase();
+      if (s.includes("generating smart contract")) return "generate";
+      if (s.includes("contract") && s.includes("generated successfully")) return "generate";
+      if (s.includes("compiling")) return "compile";
+      if (s.includes("compilation successful")) return "compile";
+      if (s.includes("preparing unsigned transaction")) return "deploy";
+      if (s.includes("transaction prepared")) return "deploy";
+      if (s.includes("ready for signing")) return "await_signature";
+      if (s.includes("submitted") && s.includes("transaction")) return "deploy";
+      if (s.includes("verification")) return "verify";
+      if (s.includes("deployed") && s.includes("contract")) return "deployed";
+      return null;
+    };
+
+    const bumpProgress = (stage: string) => {
+      const map: Record<string, number> = {
+        generate: 10,
+        compile: 60,
+        deploy: 90,
+        await_signature: 80,
+        verify: 95,
+        completed: 100,
+      };
+      const p = map[stage];
+      if (typeof p === "number") setProgress((prev) => (prev == null ? p : Math.max(prev, p)));
+    };
+
+    const tick = async () => {
+      if (cancelled || pageSignal?.aborted) return;
+      try {
+        const st = await api.jobStatus(chatId);
+        const d = (st as any)?.data;
+        const jobState = String(d?.state || "").toLowerCase();
+        const jobStep = String(d?.step || d?.cache?.step || "").toLowerCase();
+        const addr = d?.cache?.address || d?.result?.address || d?.result?.contractAddress;
+        const network = d?.cache?.network || d?.result?.network || "avalanche-fuji";
+
+        // Prefer the normalized step coming from backend cache (it may advance after wallet submit).
+        if (jobStep) {
+          setUnifiedStatus(jobStep);
+          bumpProgress(jobStep);
+          await maybeLoadArtifacts(chatId, jobStep, { signal: pageSignal });
+        }
+
+        // Fallback logs polling (handles cases where SSE is quiet or disconnected)
+        if (!logsPollInFlightRef.current) {
+          logsPollInFlightRef.current = true;
+          try {
+            const logsRes = await api.jobLogs(chatId, lastIndexRef.current, true);
+            const arr = (logsRes as any)?.data?.logs || [];
+            const count = Number((logsRes as any)?.data?.count ?? arr.length);
+            if (Number.isFinite(count) && count > 0) {
+              // Some upstreams do not provide numeric `i`. Still advance the cursor to avoid refetching the same page.
+              lastIndexRef.current = Math.max(lastIndexRef.current, lastIndexRef.current + count);
+            }
+            let sawDeployed = false;
+            for (const item of arr) {
+              const i = (item as any)?.i;
+              const msg = (item as any)?.msg;
+              const level = (item as any)?.level || "info";
+              const category = (item as any)?.category;
+              const raw = typeof msg === "string" && msg ? msg : (typeof category === "string" ? String((item as any)?.msg || "") : "");
+              if (typeof i === "number") {
+                if (seenIdxRef.current.has(i)) continue;
+                seenIdxRef.current.add(i);
+                lastIndexRef.current = Math.max(lastIndexRef.current, i);
+              }
+              if (typeof raw === "string" && raw) {
+                const st = stageFromText(raw);
+                if (st) {
+                  setUnifiedStatus(st);
+                  bumpProgress(st);
+                  await maybeLoadArtifacts(chatId, st, { signal: pageSignal });
+                  if (st === "deployed") sawDeployed = true;
+                }
+                appendLine(`[${level}] ${raw}`);
+              }
+            }
+
+            if (sawDeployed) {
+              await maybeLoadArtifacts(chatId, "deployed", { signal: pageSignal });
+            }
+          } catch (e: any) {
+            const m = String(e?.message || "logs_poll_failed");
+            if (m && m !== lastPollErrorRef.current) {
+              lastPollErrorRef.current = m;
+              appendLine(`[warn] Log polling error: ${m}`);
+            }
+          } finally {
+            logsPollInFlightRef.current = false;
+          }
+        }
+
+        if (typeof addr === "string" && addr) {
+          setContractAddress(addr);
+          setContractNetwork(network);
+          if (!artifactsLoadedRef.current) {
+            await maybeLoadArtifacts(chatId, jobStep || "deployed", { signal: pageSignal });
+          }
+
+          if (!verifyRequestedRef.current) {
+            verifyRequestedRef.current = true;
+            appendLine("[info] Starting verification...");
+            try {
+              await api.verifyByJob(chatId, network);
+            } catch (e: any) {
+              // If byJob is not available/allowed, fall back to byAddress.
+              if (e?.status === 404 || e?.code === "not_found") {
+                try { await api.verifyByAddress(addr, network); } catch {}
+              }
+            }
+          }
+
+          // Poll verification status and reflect it in UI when it flips.
+          try {
+            const vs = await api.verifyStatus(addr, network, { signal: pageSignal });
+            if (vs?.verified) {
+              setContractVerified(true);
+              if (vs?.explorerUrl) setContractExplorerUrl(vs.explorerUrl);
+            }
+          } catch {}
+        }
+
+        if (["deployed"].includes(jobState)) {
+          setState("deployed");
+          setUnifiedStatus("deployed");
+        } else if (["completed", "succeeded", "success", "done"].includes(jobState)) {
+          setState("completed");
+          setUnifiedStatus("completed");
+        }
+      } catch {}
+    };
+
+    void tick();
+    const id = setInterval(tick, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatId, isBuilderMode]);
@@ -748,9 +1054,13 @@ export default function ChatIdPage() {
     }
   }, [draggingIndex, colW]);
 
-  // WebSocket disabled; no-op
+  // WebSocket cleanup on unmount
   useEffect(() => {
     return () => {
+      wsFinishedRef.current = true;
+      wsIntentionalCloseRef.current = true;
+      if (wsReconnectTimerRef.current) { clearTimeout(wsReconnectTimerRef.current); wsReconnectTimerRef.current = null; }
+      if (wsPingRef.current) { clearInterval(wsPingRef.current); wsPingRef.current = null; }
       if (wsRef.current) {
         wsRef.current.close();
         wsRef.current = null;
@@ -776,7 +1086,7 @@ export default function ChatIdPage() {
         constructorArgs: [],
         jobKind: "pipeline",
       });
-      const jid = (started as any)?.job?.id;
+      const jid = (started as any)?.chat_id || (started as any)?.job?.id;
       if (!jid) throw new Error("Failed to start job");
       setInput("");
       router.push(`/chat/${encodeURIComponent(jid)}`);
@@ -794,7 +1104,187 @@ export default function ChatIdPage() {
       streamAbortRef.current = ac;
       const pageSignal = pageAbortRef.current?.signal;
       if (pageSignal?.aborted) return;
-      const url = `${API_BASE}/u/proxy/job/${encodeURIComponent(jid)}/logs/stream?afterIndex=${lastIndexRef.current}&includeMagical=1`;
+
+      setState((prev) => prev || "running");
+      setCurrentStage((prev) => prev || "generate");
+      setProgress((prev) => (prev == null ? 5 : prev));
+
+      // Demo mode: connect to the webbuilder status WebSocket (no auth) for
+      // real-time build updates instead of the legacy authenticated SSE stream.
+      // Mark the old socket as intentionally closed so its onclose
+      // handler doesn't schedule a reconnect.
+      wsIntentionalCloseRef.current = true;
+      try { wsRef.current?.close(); } catch {}
+      if (wsReconnectTimerRef.current) { clearTimeout(wsReconnectTimerRef.current); wsReconnectTimerRef.current = null; }
+      wsIntentionalCloseRef.current = false;
+
+      const rawBase = String(process.env.NEXT_PUBLIC_API_BASE_URL || "https://web-production-7fc87.up.railway.app").replace(/\/+$/, "");
+      const wsBase = rawBase.replace(/^http/i, "ws");
+      const wsUrl = `${wsBase}/ws/status/${encodeURIComponent(jid)}`;
+      try { console.log(JSON.stringify({ level: "debug", msg: "ws.status.connect", wsUrl })); } catch {}
+
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+
+      const handlers: any = {
+        setCurrentTool,
+        setIsBuilding,
+        pollUrlUntilReady: (u: string) => { void pollUrlUntilReady(u); },
+        setMessages,
+        setAppUrl: (u: string | null) => applyPreviewUrl(u || undefined),
+        setError,
+        setUserData: (_: any) => {},
+        consolidateMessages,
+        currentTool,
+      };
+
+      ws.onopen = () => {
+        setWsConnected(true);
+        wsReconnectAttemptRef.current = 0;
+        if (!helloShownRef.current) { appendLine(`Connected to build stream`); helloShownRef.current = true; }
+        // Send periodic pings to keep the connection alive through proxies
+        if (wsPingRef.current) clearInterval(wsPingRef.current);
+        wsPingRef.current = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            try { ws.send(JSON.stringify({ type: "ping" })); } catch {}
+          }
+        }, 10000);
+      };
+      ws.onmessage = (event) => {
+        // Route through the shared handler (history, tools, thinking, planner, errors).
+        handleWebSocketMessage(event, handlers);
+        // Additionally drive the local progress/log/state UI from lifecycle events.
+        try {
+          const data = JSON.parse(event.data);
+          const evt = String(data?.e || data?.type || "");
+          if (evt === "heartbeat" || evt === "pong") return;
+          if (typeof data?.message === "string" && data.message) {
+            const line = `[${evt || "info"}] ${data.message}`;
+            if (!seenMsgRef.current.has(line)) { appendLine(line); seenMsgRef.current.add(line); }
+          }
+          // Contract lifecycle events — drive progress bar and stage indicator
+          if (evt === "started" || evt === "starting") {
+            setUnifiedStatus("generate");
+            setProgress((prev) => (prev == null ? 5 : Math.max(prev, 5)));
+          }
+          if (evt === "contract_generating") {
+            setUnifiedStatus("generate");
+            setProgress((prev) => (prev == null ? 10 : Math.max(prev, 10)));
+          }
+          if (evt === "contract_deploying" || evt === "contract_progress") {
+            setUnifiedStatus("compile");
+            setProgress((prev) => (prev == null ? 30 : Math.max(prev, 30)));
+          }
+          if (evt === "contract_deployed") {
+            setUnifiedStatus("deployed");
+            setProgress((prev) => (prev == null ? 50 : Math.max(prev, 50)));
+            if (data.contract_address) {
+              setContractAddress(data.contract_address);
+              if (data.contract_name) setContractName(data.contract_name);
+              if (data.network) setContractNetwork(data.network);
+              if (data.explorer_url) setContractExplorerUrl(data.explorer_url);
+            }
+          }
+          if (evt === "contract_verifying" || evt === "contract_verify_failed") {
+            setUnifiedStatus("verify");
+            setProgress((prev) => (prev == null ? 55 : Math.max(prev, 55)));
+          }
+          if (evt === "contract_verified") {
+            setProgress((prev) => (prev == null ? 60 : Math.max(prev, 60)));
+            setContractVerified(true);
+            if (data.explorer_url) setContractExplorerUrl(data.explorer_url);
+          }
+          if (evt === "contract_retry") {
+            setProgress((prev) => (prev == null ? 10 : Math.min(prev, 15)));
+          }
+          if (evt === "contract_failed" || evt === "contract_abi_missing") {
+            // Backend will retry or fall back — don't mark as finished
+          }
+          if (evt === "contract_skipped") {
+            setProgress((prev) => (prev == null ? 40 : Math.max(prev, 40)));
+          }
+          if (evt === "frontend_generating") {
+            setUnifiedStatus("compile");
+            setProgress((prev) => (prev == null ? 70 : Math.max(prev, 70)));
+          }
+          if (evt === "frontend_building") {
+            setProgress((prev) => (prev == null ? 80 : Math.max(prev, 80)));
+          }
+          // Trigger file fetching when files are created/updated
+          if (evt === "file_created" || evt === "files_created" || evt === "files_stored" || evt === "snapshot_saved" || evt === "files_updated" || evt === "file_updated") {
+            // Debounce: only fetch if more than 3s since last fetch
+            const now = Date.now();
+            if (now - (wsLastFileFetchRef.current || 0) > 3000) {
+              wsLastFileFetchRef.current = now;
+              void fetchProjectFiles();
+            }
+          }
+          if (evt === "completed" || (typeof data?.url === "string" && data.url)) {
+            wsFinishedRef.current = true;
+            setUnifiedStatus("completed");
+            setProgress(100);
+            setState("completed");
+            setIsBuilding(false);
+            // Extract contract & deployment info from the completed event
+            if (data.contract_address) {
+              setContractAddress(data.contract_address);
+              if (data.contract_name) setContractName(data.contract_name);
+              if (data.network) setContractNetwork(data.network);
+              if (data.explorer_url) setContractExplorerUrl(data.explorer_url);
+            }
+            if (data.vercel_url) setVercelUrl(data.vercel_url);
+            if (data.frontend_url) applyPreviewUrl(data.frontend_url);
+            if (typeof data?.url === "string" && data.url) applyPreviewUrl(data.url);
+            if (data.contract_verified) setContractVerified(true);
+            // Show completion greeting
+            const greeting = `🎉 DApp created successfully!`;
+            if (!seenMsgRef.current.has(greeting)) { appendLine(greeting); seenMsgRef.current.add(greeting); }
+            if (data.contract_address) {
+              const addrLine = `📍 Contract: ${data.contract_address}`;
+              if (!seenMsgRef.current.has(addrLine)) { appendLine(addrLine); seenMsgRef.current.add(addrLine); }
+            }
+            if (data.explorer_url) {
+              const expLine = `🔍 Explorer: ${data.explorer_url}`;
+              if (!seenMsgRef.current.has(expLine)) { appendLine(expLine); seenMsgRef.current.add(expLine); }
+            }
+            if (data.vercel_url || data.frontend_url) {
+              const url = data.vercel_url || data.frontend_url;
+              const urlLine = `🚀 Deployed: ${url}`;
+              if (!seenMsgRef.current.has(urlLine)) { appendLine(urlLine); seenMsgRef.current.add(urlLine); }
+            }
+            // Fetch files & contract info from backend
+            void loadDappInfo(jid);
+            void fetchProjectFiles();
+          }
+          if (evt === "failed" || evt === "error") { wsFinishedRef.current = true; setState("failed"); }
+        } catch {}
+      };
+      ws.onerror = () => { appendLine(`[warn] Build stream connection error`); };
+      ws.onclose = () => {
+        setWsConnected(false);
+        if (wsPingRef.current) { clearInterval(wsPingRef.current); wsPingRef.current = null; }
+        // Don't reconnect if this close was intentional (e.g. streamLogs re-entering)
+        // or if the build is finished / page is unmounting.
+        if (wsIntentionalCloseRef.current) return;
+        if (wsFinishedRef.current) return;
+        if (pageAbortRef.current?.signal?.aborted) return;
+        // Only reconnect if this is still the active socket.
+        if (wsRef.current !== ws) return;
+        const attempt = wsReconnectAttemptRef.current++;
+        const delay = Math.min(1000 * Math.pow(2, attempt), 15000);
+        wsReconnectTimerRef.current = setTimeout(() => {
+          wsReconnectTimerRef.current = null;
+          if (!(pageAbortRef.current?.signal?.aborted)) void streamLogs(jid);
+        }, delay);
+      };
+      if (pageSignal) {
+        pageSignal.addEventListener("abort", () => { try { ws.close(); } catch {} }, { once: true });
+      }
+      return;
+
+      /* eslint-disable no-unreachable */
+      // --- Legacy authenticated SSE path (disabled for demo mode) ---
+      const url = buildApiUrl(`/u/proxy/job/${encodeURIComponent(jid)}/logs/stream?afterIndex=${lastIndexRef.current}&includeMagical=1`);
       try { console.log(JSON.stringify({ level: "debug", msg: "sse.stream.start", url })); } catch {}
       const res = await fetch(url, {
         credentials: "include",
@@ -819,6 +1309,19 @@ export default function ChatIdPage() {
       const stageFromMsg = (msg: string): string | null => {
         const m = msg.match(/Stage:\s*([a-zA-Z_]+)(?:\s*->\s*([^\n]+))?/);
         if (m) return m[1].toLowerCase();
+
+        const s = msg.toLowerCase();
+        if (s.includes("generating smart contract")) return "generate";
+        if (s.includes("contract") && s.includes("generated successfully")) return "generate";
+        if (s.includes("compiling")) return "compile";
+        if (s.includes("compilation successful")) return "compile";
+        if (s.includes("preparing unsigned transaction")) return "deploy";
+        if (s.includes("transaction prepared")) return "deploy";
+        if (s.includes("ready for signing")) return "await_signature";
+        if (s.includes("submitted") && s.includes("transaction")) return "deploy";
+        if (s.includes("deployed") && s.includes("contract")) return "deployed";
+        if (s.includes("verification")) return "verify";
+
         return null;
       };
       const bumpProgressForStage = (stage: string) => {
@@ -828,7 +1331,9 @@ export default function ChatIdPage() {
           compile: 60,
           deploy_script: 75,
           deploy: 90,
+          await_signature: 80,
           verify: 95,
+          deployed: 100,
           completed: 100,
         };
         const p = map[stage];
@@ -863,8 +1368,9 @@ export default function ChatIdPage() {
               const msg: string = String(json.msg);
               const st = stageFromMsg(msg);
               if (st) {
-                setCurrentStage(st);
+                setUnifiedStatus(st);
                 bumpProgressForStage(st);
+                try { await maybeLoadArtifacts(jid, st, { signal: pageSignal }); } catch {}
                 const stageLine = `─── ▶ Stage: ${st}${json.level ? ` [${json.level}]` : ""}`;
                 if (!seenMsgRef.current.has(stageLine)) {
                   append(stageLine);
@@ -878,6 +1384,10 @@ export default function ChatIdPage() {
                 seenMsgRef.current.add(final);
                 msgQueueRef.current.push(final);
               }
+
+              if (st) {
+                try { await maybeLoadArtifacts(jid, st, { signal: pageSignal }); } catch {}
+              }
             } else if (eventType === "magic" && json?.msg) {
               const m = String(json.msg);
               if (m === lastMagicRef.current) continue;
@@ -887,8 +1397,9 @@ export default function ChatIdPage() {
               magicQueueRef.current.push(m);
               const st = stageFromMsg(m);
               if (st) {
-                setCurrentStage(st);
+                setUnifiedStatus(st);
                 bumpProgressForStage(st);
+                try { await maybeLoadArtifacts(jid, st, { signal: pageSignal }); } catch {}
                 const stageLine = `─── ▶ Stage: ${st}`;
                 if (!seenMsgRef.current.has(stageLine)) {
                   append(stageLine);
@@ -908,6 +1419,12 @@ export default function ChatIdPage() {
               }
             } else if (eventType === "heartbeat") {
               // no-op
+            } else if (eventType === "ping") {
+              // no-op
+            } else if (eventType === "error") {
+              const msg = String(json?.message || dataStr || "stream_error");
+              append(`[error] ${msg}`);
+              setError(msg);
             } else if (eventType === "verification.started") {
               const net = json?.network || "unknown";
               const addr = json?.address || "";
@@ -1066,7 +1583,8 @@ export default function ChatIdPage() {
     if (signal?.aborted) return;
 
     if (artifactsLoadedRef.current) return;
-    artifactsLoadedRef.current = true;
+    if (artifactsInFlightRef.current) return;
+    artifactsInFlightRef.current = true;
     setArtifactsLoading(true);
 
     // STEP 1: Load sources, ABIs, scripts FIRST (priority artifacts)
@@ -1095,6 +1613,112 @@ export default function ChatIdPage() {
       } catch {}
     }
 
+    try {
+      const isWalletJob = /^ai_wallet_deploy_/i.test(String(jid || ""));
+      const isVendorPath = (p: string) => {
+        const s = String(p || "").toLowerCase();
+        return s.includes("node_modules") || s.includes("@openzeppelin") || s.includes("openzeppelin") || s.includes("hardhat") || s.includes("ethers") || s.includes("chainlink");
+      };
+      const isMyContractSource = (s: ArtifactSource) => {
+        const p = String(s?.path || "");
+        const c = String((s as any)?.content || "");
+        return /mycontract\.sol$/i.test(p) || c.includes("contract MyContract") || c.includes("contract\tMyContract");
+      };
+      const isMyContractAbi = (a: ArtifactAbi) => {
+        const p = String(a?.path || "");
+        const n = String((a as any)?.name || "");
+        return n.toLowerCase() === "mycontract" || /mycontract/i.test(p);
+      };
+      const isJobScript = (s: ArtifactScript) => {
+        const p = String(s?.path || "").toLowerCase();
+        if (p.includes(String(jid || "").toLowerCase())) return true;
+        if (p.includes("deploy-mycontract")) return true;
+        if (p === "deploy.js" || p.endsWith("/deploy.js")) return true;
+        return false;
+      };
+
+      const extractContractNamesFromScripts = (arr: ArtifactScript[]) => {
+        const names = new Set<string>();
+        const add = (v: string) => {
+          const s = String(v || "").trim();
+          if (!s) return;
+          if (s.length > 80) return;
+          if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(s)) return;
+          names.add(s);
+        };
+        for (const sc of arr) {
+          const c = String((sc as any)?.content || "");
+          if (!c) continue;
+          const patterns = [
+            /getContractFactory\(\s*["'`]([^"'`]+)["'`]\s*\)/g,
+            /deployContract\(\s*["'`]([^"'`]+)["'`]/g,
+            /deploy\(\s*\{\s*contract\s*:\s*["'`]([^"'`]+)["'`]/g,
+            /\bcontract\s*Name\s*:\s*["'`]([^"'`]+)["'`]/g,
+          ];
+          for (const re of patterns) {
+            let m: RegExpExecArray | null;
+            while ((m = re.exec(c))) add(m[1]);
+          }
+        }
+        return names;
+      };
+
+      const matchesContractName = (nameSet: Set<string>, filePath: string, content?: string) => {
+        const p = String(filePath || "");
+        const lower = p.toLowerCase();
+        for (const n of Array.from(nameSet)) {
+          const nl = n.toLowerCase();
+          if (lower.endsWith(`/${nl}.sol`) || lower.endsWith(`${nl}.sol`)) return true;
+          if (lower.includes(`/${nl}.`)) return true;
+          if (content && (content.includes(`contract ${n}`) || content.includes(`interface ${n}`) || content.includes(`library ${n}`))) return true;
+        }
+        return false;
+      };
+
+      if (isWalletJob) {
+        const primarySources = srcs.filter(isMyContractSource);
+        const nonVendorSources = srcs.filter((s) => !isVendorPath(s?.path));
+        const jobScripts = scriptsArr.filter(isJobScript);
+        scriptsArr = (jobScripts.length ? jobScripts : scriptsArr.slice(0, 5));
+
+        const nameSet = extractContractNamesFromScripts(scriptsArr);
+        if (nameSet.size) {
+          const srcByName = nonVendorSources.filter((s) => {
+            const c = String((s as any)?.content || "");
+            if (!matchesContractName(nameSet, s?.path, c)) return false;
+            for (const n of Array.from(nameSet)) {
+              if (c.includes(`contract ${n}`) || c.includes(`contract\t${n}`)) return true;
+            }
+            return false;
+          });
+          srcs = (srcByName.length ? srcByName : nonVendorSources).slice(0, 40);
+
+          const nonVendorAbis = abisArr.filter((a) => !isVendorPath(a?.path));
+          const abiByName = nonVendorAbis.filter((a) => {
+            const n = String((a as any)?.name || "");
+            if (n && nameSet.has(n)) return true;
+            return matchesContractName(nameSet, a?.path);
+          });
+          abisArr = (abiByName.length ? abiByName : nonVendorAbis).slice(0, 40);
+        } else {
+          srcs = (primarySources.length ? primarySources : nonVendorSources).slice(0, 25);
+
+          const primaryAbis = abisArr.filter(isMyContractAbi);
+          const nonVendorAbis = abisArr.filter((a) => !isVendorPath(a?.path));
+          abisArr = (primaryAbis.length ? primaryAbis : nonVendorAbis).slice(0, 25);
+        }
+      }
+    } catch {}
+
+    const hasPrimary = (srcs.length + abisArr.length + scriptsArr.length) > 0;
+    if (!hasPrimary) {
+      artifactsInFlightRef.current = false;
+      setArtifactsLoading(false);
+      return;
+    }
+
+    artifactsLoadedRef.current = true;
+
     // Update state with primary artifacts immediately
     setSources(srcs);
     setAbis(abisArr);
@@ -1102,46 +1726,91 @@ export default function ChatIdPage() {
 
     // Build initial file list with primary artifacts
     const files: { label: string; kind: "source" | "abi" | "script" | "report"; path: string }[] = [];
-    if (srcs[0]) files.push({ label: "solidity.sol", kind: "source", path: srcs[0].path });
-    if (abisArr[0]) files.push({ label: "abi.json", kind: "abi", path: abisArr[0].path });
-    if (scriptsArr[0]) files.push({ label: "Script.js", kind: "script", path: scriptsArr[0].path });
+    const usedLabels = new Map<string, number>();
+    const uniqLabel = (base: string) => {
+      const prev = usedLabels.get(base) ?? 0;
+      usedLabels.set(base, prev + 1);
+      if (prev === 0) return base;
+      const dot = base.lastIndexOf(".");
+      if (dot > 0) return `${base.slice(0, dot)}_${prev + 1}${base.slice(dot)}`;
+      return `${base}_${prev + 1}`;
+    };
+    const baseName = (p: string, fallback: string) => {
+      const raw = String(p || "");
+      const b = raw.split("/").pop() || raw;
+      return (b || fallback).trim() || fallback;
+    };
+
+    for (const s of srcs) {
+      if (!s?.path) continue;
+      const label = uniqLabel(baseName(s.path, "contract.sol"));
+      files.push({ label, kind: "source", path: s.path });
+    }
+    for (const a of abisArr) {
+      if (!a?.path) continue;
+      const fallback = a?.name ? `${a.name}.abi.json` : "abi.json";
+      const label = uniqLabel(baseName(a.path, fallback));
+      files.push({ label, kind: "abi", path: a.path });
+    }
+    for (const s of scriptsArr) {
+      if (!s?.path) continue;
+      const label = uniqLabel(baseName(s.path, "script.js"));
+      files.push({ label, kind: "script", path: s.path });
+    }
 
     // Show primary artifacts immediately
     setDisplayFiles([...files]);
     if (files[0]) {
       setSelectedPath(files[0].path);
-      if (files[0].kind === "source") setPreview(srcs[0]?.content || "");
-      else if (files[0].kind === "script") setPreview(scriptsArr[0]?.content || "");
-      else if (files[0].kind === "abi") setPreview(JSON.stringify({ name: abisArr[0]?.name, abi: abisArr[0]?.abi }, null, 2));
+      if (files[0].kind === "source") {
+        const f = srcs.find((x) => x.path === files[0].path);
+        setPreview(f?.content || "");
+      } else if (files[0].kind === "script") {
+        const f = scriptsArr.find((x) => x.path === files[0].path);
+        setPreview(f?.content || "");
+      } else if (files[0].kind === "abi") {
+        const f = abisArr.find((x) => x.path === files[0].path);
+        setPreview(JSON.stringify({ name: f?.name, abi: f?.abi }, null, 2));
+      }
     }
 
     // Mark primary loading complete
     setArtifactsLoading(false);
+    artifactsInFlightRef.current = false;
 
-    // STEP 2: Load audit and compliance reports asynchronously (non-blocking)
-    // These take longer to generate, so we load them in the background
     (async () => {
       if (signal?.aborted) return;
       try {
-        const [a1, c1] = await Promise.allSettled([
-          api.auditByJobMd(jid, { signal }),
-          api.complianceByJobMd(jid, { signal }),
-        ]);
+        const tryLoadReports = async () => {
+          const [a1, c1] = await Promise.allSettled([
+            api.auditByJobMd(jid, { signal }),
+            api.complianceByJobMd(jid, { signal }),
+          ]);
 
-        const newFiles = [...files];
+          const newFiles = [...files];
 
-        if (a1.status === "fulfilled" && a1.value) {
-          setAuditMd(a1.value as string);
-          newFiles.push({ label: "Audit.md", kind: "report", path: "audit.md" });
-        }
-        if (c1.status === "fulfilled" && c1.value) {
-          setComplianceMd(c1.value as string);
-          newFiles.push({ label: "Compliance.md", kind: "report", path: "compliance.md" });
-        }
+          if (a1.status === "fulfilled" && a1.value) {
+            setAuditMd(a1.value as string);
+            newFiles.push({ label: "Audit.md", kind: "report", path: "audit.md" });
+          }
+          if (c1.status === "fulfilled" && c1.value) {
+            setComplianceMd(c1.value as string);
+            newFiles.push({ label: "Compliance.md", kind: "report", path: "compliance.md" });
+          }
 
-        // Update file list with reports if any were loaded
-        if (newFiles.length > files.length) {
-          setDisplayFiles(newFiles);
+          // Update file list with reports if any were loaded
+          if (newFiles.length > files.length) {
+            setDisplayFiles(newFiles);
+            return true;
+          }
+          return false;
+        };
+
+        for (let attempt = 0; attempt < 4; attempt++) {
+          if (signal?.aborted) return;
+          const ok = await tryLoadReports();
+          if (ok) break;
+          await new Promise((r) => setTimeout(r, 12000 + attempt * 8000));
         }
       } catch {}
     })();
@@ -1191,9 +1860,42 @@ export default function ChatIdPage() {
       const zip = new JSZip();
       const folder = zip.folder("Contract");
       if (folder) {
-        if (sources?.[0]) folder.file("solidity.sol", sources[0].content || "");
-        if (abis?.[0]) folder.file("abi.json", JSON.stringify({ name: abis[0].name, abi: abis[0].abi }, null, 2));
-        if (scripts?.[0]) folder.file("Script.js", scripts[0].content || "");
+        const used = new Map<string, number>();
+        const uniq = (name: string) => {
+          const prev = used.get(name) ?? 0;
+          used.set(name, prev + 1);
+          if (prev === 0) return name;
+          const dot = name.lastIndexOf(".");
+          if (dot > 0) return `${name.slice(0, dot)}_${prev + 1}${name.slice(dot)}`;
+          return `${name}_${prev + 1}`;
+        };
+        const bn = (p: string, fallback: string) => {
+          const raw = String(p || "");
+          const b = raw.split("/").pop() || raw;
+          return (b || fallback).trim() || fallback;
+        };
+        if (sources?.length) {
+          const f = folder.folder("sources") || folder;
+          for (const s of sources) {
+            if (!s?.path) continue;
+            f.file(uniq(bn(s.path, "contract.sol")), s.content || "");
+          }
+        }
+        if (abis?.length) {
+          const f = folder.folder("abis") || folder;
+          for (const a of abis) {
+            if (!a?.path) continue;
+            const fallback = a?.name ? `${a.name}.abi.json` : "abi.json";
+            f.file(uniq(bn(a.path, fallback)), JSON.stringify({ name: a.name, abi: a.abi }, null, 2));
+          }
+        }
+        if (scripts?.length) {
+          const f = folder.folder("scripts") || folder;
+          for (const s of scripts) {
+            if (!s?.path) continue;
+            f.file(uniq(bn(s.path, "script.js")), s.content || "");
+          }
+        }
         if (auditMd) folder.file("Audit.md", auditMd);
         if (complianceMd) folder.file("Compliance.md", complianceMd);
       }
@@ -1240,10 +1942,14 @@ export default function ChatIdPage() {
                   <div className="text-base font-semibold text-white drop-shadow-sm">
                     {isDappMode ? "DApp Build" : isFrontendMode ? "Frontend Build" : "Thinking"}
                   </div>
-                  <div className="text-xs text-white/60">
-                    {(state || "running")}
-                    {currentStage ? ` • ${currentStage}` : ""}
-                    {progress != null ? ` • ${progress}%` : ""}
+                  <div className="text-xs text-white/60 text-right">
+                    <div>
+                      {(state || "running")}
+                      {progress != null ? ` • ${progress}%` : ""}
+                    </div>
+                    <div className="text-[11px] text-white/50">
+                      Status: {processStatus ? (statusMeta[processStatus]?.label || processStatus) : (currentStage ? currentStage : "-")}
+                    </div>
                   </div>
                 </div>
                 <div className="mt-1 text-xs text-white/40 truncate">
@@ -1258,7 +1964,7 @@ export default function ChatIdPage() {
               )}
 
               {/* DApp/Frontend info cards */}
-              {(isDappMode || isFrontendMode) && (contractAddress || vercelUrl) && (
+              {(contractAddress || vercelUrl) && (
                 <div className="mx-4 mt-3 space-y-2">
                   {contractAddress && (
                     <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
@@ -1358,10 +2064,13 @@ export default function ChatIdPage() {
                   >
                     <Archive size={14} /> ZIP
                   </button>
-                ) : appUrl && !isCheckingUrl ? (
+                ) : (previewUrl || appUrl || vercelUrl) && !isCheckingUrl ? (
                   <button
                     type="button"
-                    onClick={() => window.open(appUrl, "_blank")}
+                    onClick={() => {
+                      const openUrl = (previewUrl && !isLocalPreviewUrl(previewUrl) ? previewUrl : null) || vercelUrl || appUrl;
+                      if (openUrl) window.open(openUrl, "_blank");
+                    }}
                     className="text-[11px] text-white/70 hover:text-white flex items-center gap-1 px-2 py-1 rounded hover:bg-white/5"
                     title="Open preview in new tab"
                   >
@@ -1374,7 +2083,7 @@ export default function ChatIdPage() {
 
               <div className="flex-1 min-h-0 overflow-hidden">
                 {!showPreview ? (
-                  isBuilderMode ? (
+                  (isBuilderMode || projectFiles.length > 0) ? (
                     <FileViewer files={projectFiles} projectId={chatId} localFileContent={localFileContent} />
                   ) : (
                     <div className="h-full w-full flex min-h-0">
@@ -1490,30 +2199,23 @@ export default function ChatIdPage() {
                           <p className="text-white/60">Checking if app is ready...</p>
                         </div>
                       </div>
-                    ) : appUrl ? (
+                    ) : previewUrl ? (
                       (() => {
-                        const isExternal = /^https?:\/\//.test(appUrl) && !appUrl.includes('localhost') && !appUrl.includes('127.0.0.1');
-                        if (isExternal) {
+                        if (previewUrl && isLocalPreviewUrl(previewUrl)) {
                           return (
                             <div className="w-full h-full rounded-lg border border-white/10 bg-black flex items-center justify-center">
                               <div className="text-center max-w-md">
-                                <Globe className="w-14 h-14 text-blue-400/60 mx-auto mb-4" />
-                                <h3 className="text-lg font-semibold text-white mb-2">App Deployed Successfully</h3>
+                                <Globe className="w-14 h-14 text-yellow-400/60 mx-auto mb-4" />
+                                <h3 className="text-lg font-semibold text-white mb-2">Preview server started</h3>
                                 <p className="text-white/50 text-sm mb-1">
-                                  Embedded preview is blocked by the hosting provider.
+                                  The builder reported a local preview URL that isn’t reachable from your browser.
                                 </p>
                                 <p className="text-white/40 text-xs mb-6">
-                                  The deployed site sets <code className="text-white/60 bg-white/5 px-1 rounded">X-Frame-Options: deny</code> which prevents iframe embedding.
+                                  Preview URL: <code className="text-white/60 bg-white/5 px-1 rounded">{previewUrl}</code>
                                 </p>
-                                <a
-                                  href={appUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors"
-                                >
-                                  <ExternalLink size={16} /> Open App in New Tab
-                                </a>
-                                <p className="text-white/30 text-[11px] font-mono mt-4 truncate">{appUrl}</p>
+                                <div className="text-white/40 text-sm">
+                                  Waiting for an embeddable preview URL…
+                                </div>
                               </div>
                             </div>
                           );
@@ -1521,7 +2223,7 @@ export default function ChatIdPage() {
                         return (
                           <div className="w-full h-full rounded-lg overflow-hidden border border-white/10 bg-black">
                             <iframe
-                              src={appUrl}
+                              src={previewUrl}
                               title="App Preview"
                               className="w-full h-full"
                               sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
